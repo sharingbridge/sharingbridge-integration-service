@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildSuggestVendorsResponse,
+  validateSavePresetsRequest,
   validateSuggestVendorsRequest
 } from "../src/suggestVendors.js";
 
@@ -30,4 +31,28 @@ test("response includes max five suggestions", () => {
   assert.ok(Array.isArray(response.suggestions));
   assert.ok(response.suggestions.length <= 5);
   assert.ok(typeof response.generated_at === "string");
+});
+
+test("accepts valid save presets request", () => {
+  const error = validateSavePresetsRequest({
+    presets: [
+      {
+        restaurant_name: "A2B",
+        order_url: "https://example.com",
+        menu_items: ["Mini Meals"],
+        app_name: "Zomato"
+      }
+    ]
+  });
+  assert.equal(error, null);
+});
+
+test("rejects invalid save presets request", () => {
+  const error = validateSavePresetsRequest({
+    presets: [{ app_name: "Zomato" }]
+  });
+  assert.equal(
+    error,
+    "Each preset must include restaurant_name, order_url, menu_items, and app_name."
+  );
 });

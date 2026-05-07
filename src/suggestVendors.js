@@ -62,3 +62,31 @@ export function buildSuggestVendorsResponse() {
     generated_at: new Date().toISOString()
   };
 }
+
+function isPresetItem(item) {
+  return (
+    item &&
+    typeof item === "object" &&
+    isNonEmptyString(item.restaurant_name) &&
+    isNonEmptyString(item.order_url) &&
+    Array.isArray(item.menu_items) &&
+    item.menu_items.length > 0 &&
+    isNonEmptyString(item.app_name)
+  );
+}
+
+export function validateSavePresetsRequest(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "Request body must be a JSON object.";
+  }
+
+  if (!Array.isArray(payload.presets) || payload.presets.length === 0) {
+    return "presets must be a non-empty array.";
+  }
+
+  if (!payload.presets.every((item) => isPresetItem(item))) {
+    return "Each preset must include restaurant_name, order_url, menu_items, and app_name.";
+  }
+
+  return null;
+}
