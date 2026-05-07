@@ -51,10 +51,17 @@ npm test
 npm start
 ```
 
-Local endpoint:
+Local endpoints:
 
 - `POST http://localhost:8080/v1/donor-setup/suggest-vendors`
+- `POST http://localhost:8080/v1/donor-setup/preferences` (save donor presets)
+- `GET  http://localhost:8080/v1/donor-setup/preferences?user_id=<id>` (fetch presets)
 - `GET  http://localhost:8080/health`
+
+The HTTP server is exposed as a factory (`createIntegrationServer`) in
+`src/server.js`. Tests boot the same factory against a temp-directory
+`PreferencesStore` to exercise full save+fetch roundtrips and dedupe
+behavior; see `test/preferencesRoundtrip.test.js`.
 
 ## Contributing
 
