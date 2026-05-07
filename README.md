@@ -45,7 +45,16 @@ The prompting/ folder contains:
 
 ## Getting Started
 
-> Coming soon - Development setup instructions
+```bash
+npm install
+npm test
+npm start
+```
+
+Local endpoint:
+
+- `POST http://localhost:8080/v1/donor-setup/suggest-vendors`
+- `GET  http://localhost:8080/health`
 
 ## Contributing
 

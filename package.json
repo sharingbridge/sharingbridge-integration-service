@@ -1,0 +1,11 @@
+{
+  "name": "sharebridge-integration-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mock integration API for donor setup vendor suggestions.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}
