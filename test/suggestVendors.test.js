@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildSuggestVendorsResponse,
+  validateGetPresetsRequest,
   validateSavePresetsRequest,
   validateSuggestVendorsRequest
 } from "../src/suggestVendors.js";
@@ -35,6 +36,7 @@ test("response includes max five suggestions", () => {
 
 test("accepts valid save presets request", () => {
   const error = validateSavePresetsRequest({
+    user_id: "demo-user",
     presets: [
       {
         restaurant_name: "A2B",
@@ -49,10 +51,16 @@ test("accepts valid save presets request", () => {
 
 test("rejects invalid save presets request", () => {
   const error = validateSavePresetsRequest({
+    user_id: "demo-user",
     presets: [{ app_name: "Zomato" }]
   });
   assert.equal(
     error,
     "Each preset must include restaurant_name, order_url, menu_items, and app_name."
   );
+});
+
+test("rejects get presets request without user_id", () => {
+  const error = validateGetPresetsRequest("");
+  assert.equal(error, "user_id is required.");
 });

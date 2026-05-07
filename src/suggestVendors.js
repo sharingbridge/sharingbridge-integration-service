@@ -83,10 +83,20 @@ export function validateSavePresetsRequest(payload) {
   if (!Array.isArray(payload.presets) || payload.presets.length === 0) {
     return "presets must be a non-empty array.";
   }
+  if (!isNonEmptyString(payload.user_id)) {
+    return "user_id is required.";
+  }
 
   if (!payload.presets.every((item) => isPresetItem(item))) {
     return "Each preset must include restaurant_name, order_url, menu_items, and app_name.";
   }
 
+  return null;
+}
+
+export function validateGetPresetsRequest(userId) {
+  if (!isNonEmptyString(userId)) {
+    return "user_id is required.";
+  }
   return null;
 }

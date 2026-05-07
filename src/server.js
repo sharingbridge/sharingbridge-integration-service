@@ -1,12 +1,14 @@
 import { createServer } from "node:http";
 import {
   buildSuggestVendorsResponse,
+  validateGetPresetsRequest,
   validateSavePresetsRequest,
   validateSuggestVendorsRequest
 } from "./suggestVendors.js";
+import { PreferencesStore } from "./preferencesStore.js";
 
 const PORT = Number(process.env.PORT || 8080);
-const savedPresets = [];
+const preferencesStore = new PreferencesStore();
 
 function sendJson(res, statusCode, body) {
   res.writeHead(statusCode, { "content-type": "application/json" });
@@ -50,6 +52,22 @@ const server = createServer((req, res) => {
     return;
   }
 
+  if (req.method === "GET" && req.url.startsWith("/v1/donor-setup/preferences")) {
+    const requestUrl = new URL(req.url, "http://localhost");
+    const userId = requestUrl.searchParams.get("user_id");
+    const validationError = validateGetPresetsRequest(userId);
+    if (validationError) {
+      return sendJson(res, 400, {
+        code: "invalid_request",
+        message: validationError
+      });
+    }
+    return sendJson(res, 200, {
+      user_id: userId,
+      presets: preferencesStore.getByUser(userId)
+    });
+  }
+
   if (req.method === "POST" && req.url === "/v1/donor-setup/preferences") {
     let rawBody = "";
 
@@ -77,17 +95,30 @@ const server = createServer((req, res) => {
       }
 
       const now = new Date().toISOString();
-      const created = payload.presets.map((preset, index) => {
-        const item = { ...preset, id: `preset-${savedPresets.length + index + 1}`, saved_at: now };
-        return item;
-      });
-      savedPresets.push(...created);
-
-      return sendJson(res, 200, {
-        saved_count: created.length,
-        preset_ids: created.map((item) => item.id),
+      const created = payload.presets.map((preset, index) => ({
+        ...preset,
+        id: `${payload.user_id}-preset-${Date.now()}-${index + 1}`,
         saved_at: now
-      });
+      }));
+
+      preferencesStore
+        .saveForUser(payload.user_id, created)
+        .then((updated) =>
+          sendJson(res, 200, {
+            user_id: payload.user_id,
+            saved_count: created.length,
+            total_count: updated.length,
+            preset_ids: created.map((item) => item.id),
+            saved_at: now
+          })
+        )
+        .catch((error) =>
+          sendJson(res, 500, {
+            code: "persistence_error",
+            message: `Unable to persist presets: ${error}`
+          })
+        );
+      return;
     });
 
     return;
@@ -99,7 +130,9 @@ const server = createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Integration service listening on ${PORT}`);
+preferencesStore.init().then(() => {
+  server.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`Integration service listening on ${PORT}`);
+  });
 });
