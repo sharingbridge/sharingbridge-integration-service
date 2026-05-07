@@ -37,3 +37,6 @@ yarn-error.log*
 # Misc
 .cache/
 .temp/
+
+# Runtime data (file-backed PreferencesStore)
+data/
