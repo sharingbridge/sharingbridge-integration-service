@@ -55,13 +55,34 @@ Local endpoints:
 
 - `POST http://localhost:8080/v1/donor-setup/suggest-vendors`
 - `POST http://localhost:8080/v1/donor-setup/preferences` (save donor presets)
-- `GET  http://localhost:8080/v1/donor-setup/preferences?user_id=<id>` (fetch presets)
+- `GET  http://localhost:8080/v1/donor-setup/preferences` (fetch presets)
 - `GET  http://localhost:8080/health`
 
 The HTTP server is exposed as a factory (`createIntegrationServer`) in
 `src/server.js`. Tests boot the same factory against a temp-directory
 `PreferencesStore` to exercise full save+fetch roundtrips and dedupe
 behavior; see `test/preferencesRoundtrip.test.js`.
+
+### Auth context (MVP placeholder)
+
+Preferences endpoints derive `user_id` from request headers (no real auth
+yet — see `src/authContext.js`):
+
+- `Authorization: Bearer demo.<user_id>` (preferred)
+- `X-User-Id: <user_id>` (fallback)
+
+If both header and request body/query carry a `user_id` they must match,
+otherwise the server returns `403 user_id_mismatch`. Without any auth
+context the endpoints return `401 missing_auth_context`. Body/query
+`user_id` still works for legacy callers until the user-service ships.
+
+### Preferences backend selection
+
+- `PREFERENCES_BACKEND=local` (default) — file-backed `PreferencesStore`.
+- `PREFERENCES_BACKEND=user_service` (placeholder) — requires
+  `USER_SERVICE_BASE_URL`; not yet implemented. See
+  `sharebridge/development/USER_SERVICE_PREFERENCES_MIGRATION.md` for the
+  planned migration.
 
 ## Contributing
 

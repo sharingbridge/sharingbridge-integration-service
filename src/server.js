@@ -11,6 +11,10 @@ import {
   LocalPreferencesGateway,
   UserServicePreferencesGateway
 } from "./preferencesGateway.js";
+import {
+  extractUserIdFromHeaders,
+  resolveAuthenticatedUserId
+} from "./authContext.js";
 
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
 
@@ -74,7 +78,15 @@ export function createIntegrationServer({ preferencesGateway }) {
       req.url.startsWith("/v1/donor-setup/preferences")
     ) {
       const requestUrl = new URL(req.url, "http://localhost");
-      const userId = requestUrl.searchParams.get("user_id");
+      const queryUserId = requestUrl.searchParams.get("user_id");
+      const headerUserId = extractUserIdFromHeaders(req.headers);
+      const { userId, error: authError } = resolveAuthenticatedUserId({
+        headerUserId,
+        supplied: queryUserId
+      });
+      if (authError) {
+        return sendJson(res, authError.status, authError.body);
+      }
       const validationError = validateGetPresetsRequest(userId);
       if (validationError) {
         return sendJson(res, 400, {
@@ -114,6 +126,19 @@ export function createIntegrationServer({ preferencesGateway }) {
           });
         }
 
+        const headerUserId = extractUserIdFromHeaders(req.headers);
+        const { userId: authedUserId, error: authError } =
+          resolveAuthenticatedUserId({
+            headerUserId,
+            supplied: payload.user_id
+          });
+        if (authError) {
+          return sendJson(res, authError.status, authError.body);
+        }
+        // Use auth-resolved user_id from this point on so validation and
+        // persistence cannot drift from the authenticated identity.
+        payload.user_id = authedUserId;
+
         const validationError = validateSavePresetsRequest(payload);
         if (validationError) {
           return sendJson(res, 400, {
@@ -125,15 +150,15 @@ export function createIntegrationServer({ preferencesGateway }) {
         const now = new Date().toISOString();
         const created = payload.presets.map((preset, index) => ({
           ...preset,
-          id: `${payload.user_id}-preset-${Date.now()}-${index + 1}`,
+          id: `${authedUserId}-preset-${Date.now()}-${index + 1}`,
           saved_at: now
         }));
 
         preferencesGateway
-          .upsertForUser(payload.user_id, created)
+          .upsertForUser(authedUserId, created)
           .then((updated) =>
             sendJson(res, 200, {
-              user_id: payload.user_id,
+              user_id: authedUserId,
               saved_count: created.length,
               total_count: updated.length,
               preset_ids: created.map((item) => item.id),
