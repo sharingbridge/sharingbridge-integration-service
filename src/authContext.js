@@ -1,22 +1,4 @@
-/**
- * Minimal auth context resolver for MVP.
- *
- * Real authentication will be issued by sharebridge-user-service. Until then
- * we accept a non-cryptographic placeholder token so the rest of the stack
- * (mobile app, integration-service) can stop hard-coding `demo-user` and
- * instead pass the donor's identity through headers.
- *
- * Resolution order (first match wins):
- *   1. Authorization: Bearer demo.<user_id>
- *   2. X-User-Id: <user_id>
- *
- * Returns null when no context is present. Callers decide whether to
- * fall back to a body/query user_id (for backward compat) or reject the
- * request with 401.
- */
-
-export const DEMO_TOKEN_PREFIX = "demo.";
-export const X_USER_ID_HEADER = "x-user-id";
+import { verifyAuthToken } from "./tokenService.js";
 
 function readBearerToken(authorizationHeader) {
   if (typeof authorizationHeader !== "string") return null;
@@ -29,18 +11,13 @@ export function extractUserIdFromHeaders(headers) {
   if (!headers) return null;
 
   const token = readBearerToken(headers["authorization"]);
-  if (token && token.startsWith(DEMO_TOKEN_PREFIX)) {
-    const candidate = token.slice(DEMO_TOKEN_PREFIX.length).trim();
-    if (candidate.length > 0) {
-      return candidate;
+  if (token) {
+    try {
+      return verifyAuthToken(token).sub;
+    } catch {
+      return null;
     }
   }
-
-  const xUserId = headers[X_USER_ID_HEADER];
-  if (typeof xUserId === "string" && xUserId.trim().length > 0) {
-    return xUserId.trim();
-  }
-
   return null;
 }
 
@@ -50,15 +27,14 @@ export function extractUserIdFromHeaders(headers) {
  * object suitable for sendJson (status + body).
  */
 export function resolveAuthenticatedUserId({ headerUserId, supplied }) {
-  if (!headerUserId && !supplied) {
+  if (!headerUserId) {
     return {
       userId: null,
       error: {
         status: 401,
         body: {
           code: "missing_auth_context",
-          message:
-            "user_id could not be resolved from auth context or request payload."
+          message: "A valid Bearer token is required."
         }
       }
     };
@@ -78,5 +54,5 @@ export function resolveAuthenticatedUserId({ headerUserId, supplied }) {
     };
   }
 
-  return { userId: headerUserId || supplied, error: null };
+  return { userId: headerUserId, error: null };
 }

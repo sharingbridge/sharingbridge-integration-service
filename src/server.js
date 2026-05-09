@@ -29,9 +29,6 @@ function pickAuthHeaders(headers) {
   if (typeof headers?.authorization === "string") {
     out.authorization = headers.authorization;
   }
-  if (typeof headers?.["x-user-id"] === "string") {
-    out["x-user-id"] = headers["x-user-id"];
-  }
   return out;
 }
 

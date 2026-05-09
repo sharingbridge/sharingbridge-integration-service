@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 
 import { createIntegrationServer } from "../src/server.js";
 import { UserServicePreferencesRepository } from "../src/preferencesRepository.js";
+import { mintAuthToken } from "../src/tokenService.js";
 
 async function startStubUserService({ alwaysForbidden = false } = {}) {
   const byUser = new Map();
@@ -82,11 +83,12 @@ test("integration-service forwards auth and persists via user-service backend", 
   const userService = await startStubUserService();
   const integration = await startIntegrationServer(userService.baseUrl);
   try {
+    const token = mintAuthToken("alice");
     const save = await fetch(`${integration.baseUrl}/v1/donor-setup/preferences`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: "Bearer demo.alice"
+        authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
         user_id: "alice",
@@ -105,14 +107,14 @@ test("integration-service forwards auth and persists via user-service backend", 
     const load = await fetch(
       `${integration.baseUrl}/v1/donor-setup/preferences?user_id=alice`,
       {
-        headers: { authorization: "Bearer demo.alice" }
+        headers: { authorization: `Bearer ${token}` }
       }
     );
     assert.equal(load.status, 200);
     const body = await load.json();
     assert.equal(body.presets.length, 1);
     assert.equal(body.presets[0].restaurant_name, "A2B");
-    assert.equal(userService.getSeenAuthHeader(), "Bearer demo.alice");
+    assert.equal(userService.getSeenAuthHeader(), `Bearer ${token}`);
   } finally {
     await integration.cleanup();
     await userService.cleanup();
@@ -123,10 +125,11 @@ test("integration-service surfaces 403 from user-service backend", async () => {
   const userService = await startStubUserService({ alwaysForbidden: true });
   const integration = await startIntegrationServer(userService.baseUrl);
   try {
+    const token = mintAuthToken("alice");
     const load = await fetch(
       `${integration.baseUrl}/v1/donor-setup/preferences?user_id=alice`,
       {
-        headers: { authorization: "Bearer demo.alice" }
+        headers: { authorization: `Bearer ${token}` }
       }
     );
     assert.equal(load.status, 403);

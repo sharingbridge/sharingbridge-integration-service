@@ -4,30 +4,18 @@ import {
   extractUserIdFromHeaders,
   resolveAuthenticatedUserId
 } from "../src/authContext.js";
+import { mintAuthToken } from "../src/tokenService.js";
 
-test("extracts user_id from Bearer demo.<user_id> token", () => {
+test("extracts user_id from signed bearer token", () => {
+  const userId = extractUserIdFromHeaders({
+    authorization: `Bearer ${mintAuthToken("alice")}`
+  });
+  assert.equal(userId, "alice");
+});
+
+test("rejects malformed or unsigned bearer tokens", () => {
   const userId = extractUserIdFromHeaders({
     authorization: "Bearer demo.alice"
-  });
-  assert.equal(userId, "alice");
-});
-
-test("extracts user_id from X-User-Id header when no bearer", () => {
-  const userId = extractUserIdFromHeaders({ "x-user-id": "bob" });
-  assert.equal(userId, "bob");
-});
-
-test("bearer demo. token wins over X-User-Id header", () => {
-  const userId = extractUserIdFromHeaders({
-    authorization: "Bearer demo.alice",
-    "x-user-id": "bob"
-  });
-  assert.equal(userId, "alice");
-});
-
-test("ignores non-demo bearer tokens (handled by future real auth)", () => {
-  const userId = extractUserIdFromHeaders({
-    authorization: "Bearer some.other.jwt"
   });
   assert.equal(userId, null);
 });
@@ -66,11 +54,11 @@ test("resolveAuthenticatedUserId returns 401 when nothing is provided", () => {
   assert.equal(result.error.body.code, "missing_auth_context");
 });
 
-test("resolveAuthenticatedUserId falls back to supplied when header missing", () => {
+test("resolveAuthenticatedUserId does not trust supplied id without token", () => {
   const result = resolveAuthenticatedUserId({
     headerUserId: null,
     supplied: "carol"
   });
-  assert.equal(result.userId, "carol");
-  assert.equal(result.error, null);
+  assert.equal(result.userId, null);
+  assert.equal(result.error.status, 401);
 });

@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createIntegrationServer } from "../src/server.js";
 import { PreferencesStore } from "../src/preferencesStore.js";
 import { LocalPreferencesRepository } from "../src/preferencesRepository.js";
+import { mintAuthToken } from "../src/tokenService.js";
 
 async function startTestServer() {
   const tempDir = mkdtempSync(join(tmpdir(), "sb-prefs-"));
@@ -48,9 +49,13 @@ test("save then fetch returns the persisted preset for the user", async () => {
   const { baseUrl, cleanup } = await startTestServer();
   try {
     const userId = "user-roundtrip-1";
+    const token = mintAuthToken(userId);
     const saveRes = await fetch(`${baseUrl}/v1/donor-setup/preferences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`
+      },
       body: JSON.stringify({ user_id: userId, presets: [sampleA] })
     });
     assert.equal(saveRes.status, 200);
@@ -60,7 +65,8 @@ test("save then fetch returns the persisted preset for the user", async () => {
     assert.equal(saveBody.preset_ids.length, 1);
 
     const getRes = await fetch(
-      `${baseUrl}/v1/donor-setup/preferences?user_id=${userId}`
+      `${baseUrl}/v1/donor-setup/preferences?user_id=${userId}`,
+      { headers: { authorization: `Bearer ${token}` } }
     );
     assert.equal(getRes.status, 200);
     const getBody = await getRes.json();
@@ -79,10 +85,14 @@ test("save dedupes by (restaurant_name, order_url) on repeat save", async () => 
   const { baseUrl, cleanup } = await startTestServer();
   try {
     const userId = "user-dedupe";
+    const token = mintAuthToken(userId);
 
     const firstSave = await fetch(`${baseUrl}/v1/donor-setup/preferences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`
+      },
       body: JSON.stringify({ user_id: userId, presets: [sampleA, sampleB] })
     });
     assert.equal(firstSave.status, 200);
@@ -92,7 +102,10 @@ test("save dedupes by (restaurant_name, order_url) on repeat save", async () => 
     // Saving sampleA again must not grow the user's preset list.
     const secondSave = await fetch(`${baseUrl}/v1/donor-setup/preferences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`
+      },
       body: JSON.stringify({
         user_id: userId,
         presets: [{ ...sampleA, menu_items: ["Mini Meals", "Curd Rice"] }]
@@ -103,7 +116,8 @@ test("save dedupes by (restaurant_name, order_url) on repeat save", async () => 
     assert.equal(secondBody.total_count, 2, "duplicate save must not grow set");
 
     const getRes = await fetch(
-      `${baseUrl}/v1/donor-setup/preferences?user_id=${userId}`
+      `${baseUrl}/v1/donor-setup/preferences?user_id=${userId}`,
+      { headers: { authorization: `Bearer ${token}` } }
     );
     const getBody = await getRes.json();
     assert.equal(getBody.presets.length, 2);
@@ -125,23 +139,33 @@ test("save dedupes by (restaurant_name, order_url) on repeat save", async () => 
 test("preferences are isolated per user_id", async () => {
   const { baseUrl, cleanup } = await startTestServer();
   try {
+    const aliceToken = mintAuthToken("alice");
+    const bobToken = mintAuthToken("bob");
     await fetch(`${baseUrl}/v1/donor-setup/preferences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${aliceToken}`
+      },
       body: JSON.stringify({ user_id: "alice", presets: [sampleA] })
     });
     await fetch(`${baseUrl}/v1/donor-setup/preferences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${bobToken}`
+      },
       body: JSON.stringify({ user_id: "bob", presets: [sampleB] })
     });
 
     const aliceRes = await fetch(
-      `${baseUrl}/v1/donor-setup/preferences?user_id=alice`
+      `${baseUrl}/v1/donor-setup/preferences?user_id=alice`,
+      { headers: { authorization: `Bearer ${aliceToken}` } }
     );
     const aliceBody = await aliceRes.json();
     const bobRes = await fetch(
-      `${baseUrl}/v1/donor-setup/preferences?user_id=bob`
+      `${baseUrl}/v1/donor-setup/preferences?user_id=bob`,
+      { headers: { authorization: `Bearer ${bobToken}` } }
     );
     const bobBody = await bobRes.json();
 
@@ -158,9 +182,13 @@ test("save rejects malformed presets without persisting", async () => {
   const { baseUrl, cleanup } = await startTestServer();
   try {
     const userId = "user-bad-input";
+    const token = mintAuthToken(userId);
     const res = await fetch(`${baseUrl}/v1/donor-setup/preferences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`
+      },
       body: JSON.stringify({
         user_id: userId,
         presets: [{ app_name: "Zomato" }]
@@ -171,7 +199,8 @@ test("save rejects malformed presets without persisting", async () => {
     assert.equal(body.code, "invalid_request");
 
     const getRes = await fetch(
-      `${baseUrl}/v1/donor-setup/preferences?user_id=${userId}`
+      `${baseUrl}/v1/donor-setup/preferences?user_id=${userId}`,
+      { headers: { authorization: `Bearer ${token}` } }
     );
     const getBody = await getRes.json();
     assert.equal(getBody.presets.length, 0);
