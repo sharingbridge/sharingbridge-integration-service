@@ -1,3 +1,5 @@
+// MVP mock: response is fixed (does not vary with query_text). Real search/AI would
+// replace this. Clients should still show all menu_items — see mobile Donor Setup list.
 const MOCK_SUGGESTIONS = [
   {
     restaurant_name: "A2B",
