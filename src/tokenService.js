@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 
-const DEFAULT_ISSUER = process.env.AUTH_TOKEN_ISSUER || "sharebridge-user-service";
-const DEFAULT_AUDIENCE = process.env.AUTH_TOKEN_AUDIENCE || "sharebridge-clients";
+const DEFAULT_ISSUER = process.env.AUTH_TOKEN_ISSUER || "sharingbridge-user-service";
+const DEFAULT_AUDIENCE = process.env.AUTH_TOKEN_AUDIENCE || "sharingbridge-clients";
 const DEFAULT_SECRET =
-  process.env.AUTH_TOKEN_SECRET || "sharebridge-dev-secret-change-me";
+  process.env.AUTH_TOKEN_SECRET || "sharingbridge-dev-secret-change-me";
 
 function sign(data, secret) {
   return crypto.createHmac("sha256", secret).update(data).digest("base64url");

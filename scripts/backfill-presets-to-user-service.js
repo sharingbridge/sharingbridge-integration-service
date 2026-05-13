@@ -1,6 +1,6 @@
 /**
  * One-shot migration: integration-service PreferencesStore (`data/preferences.json`)
- * → sharebridge-user-service donor-presets (PUT per user).
+ * → sharingbridge-user-service donor-presets (PUT per user).
  *
  * Prerequisites:
  *   - user-service reachable (mint + PUT)

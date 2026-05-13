@@ -1,4 +1,4 @@
-# sharebridge-integration-service
+# sharingbridge-integration-service
 
 > Vendor integrations (Swiggy, Zomato, Uber Eats)
 
@@ -20,7 +20,7 @@ This repository contains the **Integration Service** - handles all third-party v
 
 **Technology Stack:** Node.js with NestJS for API orchestration and webhook handling
 
-For overall project context, see the [main ShareBridge repository](https://github.com/sharebridge/sharebridge).
+For overall project context, see the [main SharingBridge repository](https://github.com/sharingbridge/sharingbridge).
 
 ## Repository Status
 
@@ -52,28 +52,28 @@ behavior; see `test/preferencesRoundtrip.test.js`.
 ### Auth context
 
 Preferences and suggest flows use **signed JWT bearer tokens** (HS256) minted by
-`sharebridge-user-service` (`POST /v1/auth/token`). See `src/authContext.js` and
-`sharebridge/design/contracts/donor_setup_preferences.openapi.yaml` for the contract.
+`sharingbridge-user-service` (`POST /v1/auth/token`). See `src/authContext.js` and
+`sharingbridge/design/contracts/donor_setup_preferences.openapi.yaml` for the contract.
 
 ### Preferences backend selection
 
 - `PREFERENCES_BACKEND=local` (default) — file-backed `PreferencesStore`.
 - `PREFERENCES_BACKEND=user_service` — requires `USER_SERVICE_BASE_URL`; forwards to
   user-service `GET/PUT /v1/users/{id}/donor-presets` and `POST …/delete-item`.
-  See `sharebridge/development/USER_SERVICE_PREFERENCES_MIGRATION.md`.
+  See `sharingbridge/development/USER_SERVICE_PREFERENCES_MIGRATION.md`.
 
 ## Contributing
 
-See the [main repository's CALL_FOR_CONTRIBUTORS.md](https://github.com/sharebridge/sharebridge/blob/main/development/CALL_FOR_CONTRIBUTORS.md) for:
+See the [main repository's CALL_FOR_CONTRIBUTORS.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/CALL_FOR_CONTRIBUTORS.md) for:
 - How to contribute (technical and non-technical)
 - Joining GitHub Discussions
 - Submitting prompts and feature ideas
 
-Contract references (main `sharebridge` repo):
+Contract references (main `sharingbridge` repo):
 
-- [Suggest vendors](https://github.com/sharebridge/sharebridge/blob/main/design/contracts/donor_setup_suggest_vendors.openapi.yaml)
-- [Integration preferences](https://github.com/sharebridge/sharebridge/blob/main/design/contracts/donor_setup_preferences.openapi.yaml)
-- [User-service donor presets](https://github.com/sharebridge/sharebridge/blob/main/design/contracts/user_service_donor_presets.openapi.yaml)
+- [Suggest vendors](https://github.com/sharingbridge/sharingbridge/blob/main/design/contracts/donor_setup_suggest_vendors.openapi.yaml)
+- [Integration preferences](https://github.com/sharingbridge/sharingbridge/blob/main/design/contracts/donor_setup_preferences.openapi.yaml)
+- [User-service donor presets](https://github.com/sharingbridge/sharingbridge/blob/main/design/contracts/user_service_donor_presets.openapi.yaml)
 
 ## License
 
@@ -81,4 +81,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Part of the [ShareBridge](https://github.com/sharebridge/sharebridge) ecosystem
+Part of the [SharingBridge](https://github.com/sharingbridge/sharingbridge) ecosystem

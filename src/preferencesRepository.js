@@ -2,7 +2,7 @@
  * Repository abstraction for donor preferences.
  *
  * The HTTP handlers in server.js depend only on this contract; they do not
- * care whether presets live on disk today or in sharebridge-user-service
+ * care whether presets live on disk today or in sharingbridge-user-service
  * tomorrow. Concrete implementations decide where the data actually lives.
  *
  * Contract:
@@ -47,7 +47,7 @@ export class LocalPreferencesRepository {
 }
 
 /**
- * Remote repository backed by sharebridge-user-service.
+ * Remote repository backed by sharingbridge-user-service.
  *
  * Expected user-service contract:
  *   GET    /v1/users/{user_id}/donor-presets              -> { presets: Preset[] }

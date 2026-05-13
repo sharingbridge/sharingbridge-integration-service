@@ -1,5 +1,5 @@
 {
-  "name": "sharebridge-integration-service",
+  "name": "sharingbridge-integration-service",
   "version": "0.1.0",
   "private": true,
   "description": "Mock integration API for donor setup vendor suggestions.",
