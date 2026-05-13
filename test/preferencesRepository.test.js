@@ -157,37 +157,26 @@ test("UserServicePreferencesRepository upsertForUser sends PUT payload", async (
   }
 });
 
-test("UserServicePreferencesRepository removePresetForUser GETs then PUTs filtered list", async () => {
-  let getSeen = 0;
-  let putBody = null;
+test("UserServicePreferencesRepository removePresetForUser POSTs delete-item", async () => {
+  let seenMethod = null;
+  let seenPath = null;
+  let seenBody = null;
   const stub = await startStubUserService((req, res) => {
-    if (req.method === "GET") {
-      getSeen += 1;
+    seenMethod = req.method;
+    seenPath = req.url;
+    let raw = "";
+    req.on("data", (chunk) => {
+      raw += chunk;
+    });
+    req.on("end", () => {
+      seenBody = JSON.parse(raw || "{}");
       res.writeHead(200, { "content-type": "application/json" });
       res.end(
         JSON.stringify({
-          presets: [
-            { restaurant_name: "A", order_url: "http://a" },
-            { restaurant_name: "B", order_url: "http://b" }
-          ]
+          presets: [{ restaurant_name: "B", order_url: "http://b" }]
         })
       );
-      return;
-    }
-    if (req.method === "PUT") {
-      let raw = "";
-      req.on("data", (chunk) => {
-        raw += chunk;
-      });
-      req.on("end", () => {
-        putBody = JSON.parse(raw || "{}");
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ presets: putBody.presets || [] }));
-      });
-      return;
-    }
-    res.writeHead(405);
-    res.end();
+    });
   });
   try {
     const repository = new UserServicePreferencesRepository({
@@ -198,12 +187,14 @@ test("UserServicePreferencesRepository removePresetForUser GETs then PUTs filter
       { restaurant_name: "A", order_url: "http://a" },
       { authHeaders: { authorization: "Bearer t" } }
     );
-    assert.equal(getSeen, 1);
+    assert.equal(seenMethod, "POST");
+    assert.equal(seenPath, "/v1/users/alice/donor-presets/delete-item");
+    assert.deepEqual(seenBody, {
+      restaurant_name: "A",
+      order_url: "http://a"
+    });
     assert.equal(remaining.length, 1);
     assert.equal(remaining[0].restaurant_name, "B");
-    assert.deepEqual(putBody, {
-      presets: [{ restaurant_name: "B", order_url: "http://b" }]
-    });
   } finally {
     await stub.cleanup();
   }

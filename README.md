@@ -40,6 +40,8 @@ Local endpoints:
 - `POST http://localhost:8080/v1/donor-setup/suggest-vendors`
 - `POST http://localhost:8080/v1/donor-setup/preferences` (save donor presets)
 - `GET  http://localhost:8080/v1/donor-setup/preferences` (fetch presets)
+- `DELETE http://localhost:8080/v1/donor-setup/preferences?user_id=…` (clear all; `user_id` optional when bearer identifies user)
+- `POST http://localhost:8080/v1/donor-setup/preferences/delete-item` (remove one preset by `restaurant_name` + `order_url`)
 - `GET  http://localhost:8080/health`
 
 The HTTP server is exposed as a factory (`createIntegrationServer`) in
@@ -47,26 +49,18 @@ The HTTP server is exposed as a factory (`createIntegrationServer`) in
 `PreferencesStore` to exercise full save+fetch roundtrips and dedupe
 behavior; see `test/preferencesRoundtrip.test.js`.
 
-### Auth context (MVP placeholder)
+### Auth context
 
-Preferences endpoints derive `user_id` from request headers (no real auth
-yet — see `src/authContext.js`):
-
-- `Authorization: Bearer demo.<user_id>` (preferred)
-- `X-User-Id: <user_id>` (fallback)
-
-If both header and request body/query carry a `user_id` they must match,
-otherwise the server returns `403 user_id_mismatch`. Without any auth
-context the endpoints return `401 missing_auth_context`. Body/query
-`user_id` still works for legacy callers until the user-service ships.
+Preferences and suggest flows use **signed JWT bearer tokens** (HS256) minted by
+`sharebridge-user-service` (`POST /v1/auth/token`). See `src/authContext.js` and
+`sharebridge/design/contracts/donor_setup_preferences.openapi.yaml` for the contract.
 
 ### Preferences backend selection
 
 - `PREFERENCES_BACKEND=local` (default) — file-backed `PreferencesStore`.
-- `PREFERENCES_BACKEND=user_service` (placeholder) — requires
-  `USER_SERVICE_BASE_URL`; not yet implemented. See
-  `sharebridge/development/USER_SERVICE_PREFERENCES_MIGRATION.md` for the
-  planned migration.
+- `PREFERENCES_BACKEND=user_service` — requires `USER_SERVICE_BASE_URL`; forwards to
+  user-service `GET/PUT /v1/users/{id}/donor-presets` and `POST …/delete-item`.
+  See `sharebridge/development/USER_SERVICE_PREFERENCES_MIGRATION.md`.
 
 ## Contributing
 
@@ -75,8 +69,11 @@ See the [main repository's CALL_FOR_CONTRIBUTORS.md](https://github.com/sharebri
 - Joining GitHub Discussions
 - Submitting prompts and feature ideas
 
-Contract reference for current donor setup search flow:
-- https://github.com/sharebridge/sharebridge/blob/main/design/contracts/donor_setup_suggest_vendors.openapi.yaml
+Contract references (main `sharebridge` repo):
+
+- [Suggest vendors](https://github.com/sharebridge/sharebridge/blob/main/design/contracts/donor_setup_suggest_vendors.openapi.yaml)
+- [Integration preferences](https://github.com/sharebridge/sharebridge/blob/main/design/contracts/donor_setup_preferences.openapi.yaml)
+- [User-service donor presets](https://github.com/sharebridge/sharebridge/blob/main/design/contracts/user_service_donor_presets.openapi.yaml)
 
 ## License
 

@@ -50,8 +50,10 @@ export class LocalPreferencesRepository {
  * Remote repository backed by sharebridge-user-service.
  *
  * Expected user-service contract:
- *   GET    /v1/users/{user_id}/donor-presets         -> { presets: Preset[] }
- *   PUT    /v1/users/{user_id}/donor-presets         -> { presets: Preset[] }
+ *   GET    /v1/users/{user_id}/donor-presets              -> { presets: Preset[] }
+ *   PUT    /v1/users/{user_id}/donor-presets              -> { presets: Preset[] }
+ *   POST   /v1/users/{user_id}/donor-presets/delete-item  -> { presets: Preset[] }
+ *          body: { restaurant_name, order_url }
  *
  * Auth: forward the donor's auth context (see "minimal auth context" task).
  */
@@ -119,12 +121,29 @@ export class UserServicePreferencesRepository {
   }
 
   async removePresetForUser(userId, key, opts = {}) {
-    const existing = await this.listByUser(userId, opts);
-    const norm = (p) =>
-      `${String(p.restaurant_name ?? "").trim()}|${String(p.order_url ?? "").trim()}`;
-    const target = norm(key);
-    const next = existing.filter((p) => norm(p) !== target);
-    return this.upsertForUser(userId, next, opts);
+    const response = await fetch(
+      `${this._baseUrl}/v1/users/${encodeURIComponent(userId)}/donor-presets/delete-item`,
+      {
+        method: "POST",
+        headers: this.#buildHeaders(opts.authHeaders, {
+          "content-type": "application/json"
+        }),
+        body: JSON.stringify({
+          restaurant_name: String(key.restaurant_name ?? "").trim(),
+          order_url: String(key.order_url ?? "").trim()
+        })
+      }
+    );
+    const payload = await this.#readJson(response);
+    if (!response.ok) {
+      throw this.#toError(response.status, payload);
+    }
+    if (!payload || !Array.isArray(payload.presets)) {
+      throw new Error(
+        "User-service delete-item donor-presets returned invalid payload."
+      );
+    }
+    return payload.presets;
   }
 
   #buildHeaders(authHeaders = {}, extraHeaders = {}) {

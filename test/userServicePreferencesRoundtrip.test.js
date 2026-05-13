@@ -22,6 +22,31 @@ async function startStubUserService({ alwaysForbidden = false } = {}) {
       return;
     }
 
+    const deleteMatch = /^\/v1\/users\/([^/]+)\/donor-presets\/delete-item$/.exec(
+      req.url || ""
+    );
+    if (deleteMatch && req.method === "POST") {
+      const userId = decodeURIComponent(deleteMatch[1]);
+      let raw = "";
+      req.on("data", (chunk) => {
+        raw += chunk;
+      });
+      req.on("end", () => {
+        const key = JSON.parse(raw || "{}");
+        const list = byUser.get(userId) || [];
+        const target = `${String(key.restaurant_name ?? "").trim()}|${String(key.order_url ?? "").trim()}`;
+        const next = list.filter(
+          (p) =>
+            `${String(p.restaurant_name ?? "").trim()}|${String(p.order_url ?? "").trim()}` !==
+            target
+        );
+        byUser.set(userId, next);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ presets: next }));
+      });
+      return;
+    }
+
     const getMatch = /^\/v1\/users\/([^/]+)\/donor-presets$/.exec(req.url || "");
     const userId = getMatch ? decodeURIComponent(getMatch[1]) : null;
     if (!userId) {
@@ -115,6 +140,62 @@ test("integration-service forwards auth and persists via user-service backend", 
     assert.equal(body.presets.length, 1);
     assert.equal(body.presets[0].restaurant_name, "A2B");
     assert.equal(userService.getSeenAuthHeader(), `Bearer ${token}`);
+  } finally {
+    await integration.cleanup();
+    await userService.cleanup();
+  }
+});
+
+test("integration-service delete-item forwards to user-service delete-item", async () => {
+  const userService = await startStubUserService();
+  const integration = await startIntegrationServer(userService.baseUrl);
+  try {
+    const token = mintAuthToken("bob");
+    const save = await fetch(`${integration.baseUrl}/v1/donor-setup/preferences`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        user_id: "bob",
+        presets: [
+          {
+            restaurant_name: "X",
+            order_url: "https://x.example",
+            menu_items: ["a"],
+            app_name: "Z"
+          },
+          {
+            restaurant_name: "Y",
+            order_url: "https://y.example",
+            menu_items: ["b"],
+            app_name: "Z"
+          }
+        ]
+      })
+    });
+    assert.equal(save.status, 200);
+
+    const del = await fetch(
+      `${integration.baseUrl}/v1/donor-setup/preferences/delete-item`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: "bob",
+          restaurant_name: "X",
+          order_url: "https://x.example"
+        })
+      }
+    );
+    assert.equal(del.status, 200);
+    const delBody = await del.json();
+    assert.equal(delBody.presets.length, 1);
+    assert.equal(delBody.presets[0].restaurant_name, "Y");
   } finally {
     await integration.cleanup();
     await userService.cleanup();
