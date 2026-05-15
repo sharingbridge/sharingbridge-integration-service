@@ -61,8 +61,27 @@ export function validateSuggestVendorsRequest(payload) {
 export function buildSuggestVendorsResponse() {
   return {
     suggestions: MOCK_SUGGESTIONS.slice(0, 5),
-    generated_at: new Date().toISOString()
+    generated_at: new Date().toISOString(),
+    source: "mock"
   };
+}
+
+export async function resolveSuggestVendorsResponse(payload, { aiClient } = {}) {
+  const { isSuggestVendorsAiEnabled } = await import("./aiOrchestrationClient.js");
+  if (isSuggestVendorsAiEnabled() && aiClient?.isConfigured()) {
+    try {
+      const upstream = await aiClient.suggestVendors(payload);
+      return {
+        suggestions: upstream.suggestions ?? [],
+        generated_at: upstream.generated_at || new Date().toISOString(),
+        source: upstream.source || "orchestration"
+      };
+    } catch {
+      const fallback = buildSuggestVendorsResponse();
+      return { ...fallback, source: "mock_fallback" };
+    }
+  }
+  return buildSuggestVendorsResponse();
 }
 
 function isPresetItem(item) {

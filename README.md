@@ -37,7 +37,8 @@ npm start
 
 Local endpoints:
 
-- `POST http://localhost:8080/v1/donor-setup/suggest-vendors`
+- `POST http://localhost:8080/v1/donor-setup/suggest-vendors` (mock or AI orchestration when enabled)
+- `POST http://localhost:8080/v1/donor-seeker/instruction-pack` (delivery instruction narrative)
 - `POST http://localhost:8080/v1/donor-setup/preferences` (save donor presets)
 - `GET  http://localhost:8080/v1/donor-setup/preferences` (fetch presets)
 - `DELETE http://localhost:8080/v1/donor-setup/preferences?user_id=…` (clear all; `user_id` optional when bearer identifies user)
@@ -54,6 +55,21 @@ behavior; see `test/preferencesRoundtrip.test.js`.
 Preferences and suggest flows use **signed JWT bearer tokens** (HS256) minted by
 `sharingbridge-user-service` (`POST /v1/auth/token`). See `src/authContext.js` and
 `sharingbridge/design/contracts/donor_setup_preferences.openapi.yaml` for the contract.
+
+### AI orchestration bridge (`sharingbridge-ai-orchestration`)
+
+When `AI_ORCHESTRATION_BASE_URL` is set and feature flags are on, integration-service calls the orchestration service instead of fixed mocks:
+
+| Env | Purpose |
+|-----|---------|
+| `AI_ORCHESTRATION_BASE_URL` | e.g. `http://localhost:8091` |
+| `AI_SUGGEST_VENDORS_ENABLED` | `true` → query-ranked suggestions from orchestration |
+| `AI_INSTRUCTION_PACK_ENABLED` | `true` → instruction-pack from orchestration |
+| `AI_ORCHESTRATION_INTERNAL_TOKEN` | optional shared secret (`X-Internal-Token`) |
+
+Copy `.env.example` for a local three-service stack. On orchestration failure, suggest-vendors falls back to the fixed mock list; instruction-pack falls back to a server-side template.
+
+See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbridge/development/AI_PLATFORM_INTEGRATION.md`.
 
 ### Preferences backend selection
 

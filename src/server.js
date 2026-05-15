@@ -1,7 +1,12 @@
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
+import { AiOrchestrationClient } from "./aiOrchestrationClient.js";
 import {
-  buildSuggestVendorsResponse,
+  resolveInstructionPackResponse,
+  validateInstructionPackRequest
+} from "./instructionPack.js";
+import {
+  resolveSuggestVendorsResponse,
   validateDeletePresetItemRequest,
   validateGetPresetsRequest,
   validateSavePresetsRequest,
@@ -33,6 +38,23 @@ function pickAuthHeaders(headers) {
   return out;
 }
 
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let rawBody = "";
+    req.on("data", (chunk) => {
+      rawBody += chunk;
+    });
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(rawBody || "{}"));
+      } catch {
+        reject(new Error("invalid_json"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
 /**
  * Build an http.Server wired up against the given preferences repository.
  * Tests inject a LocalPreferencesRepository with a temp-directory store;
@@ -40,7 +62,10 @@ function pickAuthHeaders(headers) {
  * based on the PREFERENCES_BACKEND env var so swapping to user-service is
  * one config flip.
  */
-export function createIntegrationServer({ preferencesRepository }) {
+export function createIntegrationServer({
+  preferencesRepository,
+  aiOrchestrationClient = new AiOrchestrationClient()
+}) {
   if (!preferencesRepository) {
     throw new Error(
       "createIntegrationServer requires preferencesRepository"
@@ -55,33 +80,85 @@ export function createIntegrationServer({ preferencesRepository }) {
       req.method === "POST" &&
       req.url === "/v1/donor-setup/suggest-vendors"
     ) {
-      let rawBody = "";
+      readJsonBody(req)
+        .then(async (payload) => {
+          const validationError = validateSuggestVendorsRequest(payload);
+          if (validationError) {
+            return sendJson(res, 400, {
+              code: "invalid_request",
+              message: validationError
+            });
+          }
 
-      req.on("data", (chunk) => {
-        rawBody += chunk;
-      });
-
-      req.on("end", () => {
-        let payload;
-        try {
-          payload = JSON.parse(rawBody || "{}");
-        } catch {
-          return sendJson(res, 400, {
-            code: "invalid_json",
-            message: "Request body must be valid JSON."
+          const body = await resolveSuggestVendorsResponse(payload, {
+            aiClient: aiOrchestrationClient
           });
-        }
-
-        const validationError = validateSuggestVendorsRequest(payload);
-        if (validationError) {
-          return sendJson(res, 400, {
-            code: "invalid_request",
-            message: validationError
+          return sendJson(res, 200, body);
+        })
+        .catch((error) => {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, 500, {
+            code: "internal_error",
+            message: error?.message || "Unexpected error."
           });
-        }
+        });
 
-        return sendJson(res, 200, buildSuggestVendorsResponse());
-      });
+      return;
+    }
+
+    if (
+      req.method === "POST" &&
+      req.url === "/v1/donor-seeker/instruction-pack"
+    ) {
+      readJsonBody(req)
+        .then(async (payload) => {
+          const headerUserId = extractUserIdFromHeaders(req.headers);
+          const suppliedUserId =
+            typeof payload.user_id === "string" ? payload.user_id.trim() : "";
+          let userId = headerUserId || suppliedUserId || null;
+          if (
+            headerUserId &&
+            suppliedUserId &&
+            headerUserId !== suppliedUserId
+          ) {
+            return sendJson(res, 403, {
+              code: "user_id_mismatch",
+              message:
+                "user_id in payload does not match the authenticated user_id."
+            });
+          }
+
+          const validationError = validateInstructionPackRequest(payload);
+          if (validationError) {
+            return sendJson(res, 400, {
+              code: "invalid_request",
+              message: validationError
+            });
+          }
+
+          const body = await resolveInstructionPackResponse(payload, {
+            aiClient: aiOrchestrationClient,
+            userId
+          });
+          return sendJson(res, 200, { user_id: userId, ...body });
+        })
+        .catch((error) => {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, 500, {
+            code: "internal_error",
+            message: error?.message || "Unexpected error."
+          });
+        });
 
       return;
     }

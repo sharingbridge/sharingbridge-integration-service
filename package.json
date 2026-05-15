@@ -2,7 +2,7 @@
   "name": "sharingbridge-integration-service",
   "version": "0.1.0",
   "private": true,
-  "description": "Mock integration API for donor setup vendor suggestions.",
+  "description": "Integration API for donor setup, preferences, and AI orchestration bridges.",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
