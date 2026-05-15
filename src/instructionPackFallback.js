@@ -1,42 +1,36 @@
+function sanitizeHandoverNotes(text) {
+  return (text || "").trim().replace(/\s+/g, " ");
+}
+
 /**
  * Local fallback when AI orchestration is disabled or unreachable.
- * Mirrors mobile stub tone until orchestration is always on in prod.
+ * Courier-facing text only (no donor UI or preset list).
  */
 export function buildInstructionPackFallback(payload) {
-  const presets = Array.isArray(payload?.presets) ? payload.presets : [];
-  const verbal = (payload?.verbal_handover_notes || "").trim();
+  const verbal = sanitizeHandoverNotes(payload?.verbal_handover_notes);
   const hasPhoto = Boolean(payload?.has_reference_photo);
 
   const lines = [
-    "SharingBridge — delivery notes (integration fallback)",
-    "",
-    "Be careful with personal details: only include what a courier truly needs.",
+    "This meal was arranged through SharingBridge for handover to the recipient.",
     ""
   ];
 
   if (hasPhoto) {
-    lines.push(
-      "Reference: a photo was noted for this request. Connect photo-service for a secure URL.",
-      ""
-    );
+    lines.push("Reference photo: available to delivery partner per app policy.", "");
   }
 
   if (verbal) {
-    lines.push("Handover notes you entered:", verbal, "");
+    lines.push(`Handover notes: ${verbal}`, "");
   }
 
-  lines.push("Your saved order shortcuts:");
-  if (presets.length === 0) {
-    lines.push("(No presets supplied.)");
-  } else {
-    for (const p of presets) {
-      const items =
-        Array.isArray(p.menu_items) && p.menu_items.length
-          ? p.menu_items.join(", ")
-          : "(menu not listed)";
-      lines.push(`- ${p.restaurant_name} (${p.app_name}): ${items}`);
-    }
-  }
+  lines.push(
+    "Additional details:",
+    "",
+    "",
+    "Please deliver to the location provided in the vendor app.",
+    "Identify the recipient using the handover notes and reference photo only with their consent.",
+    "Hand over the package and confirm delivery in the vendor app."
+  );
 
   return {
     pack_id: `fallback-${Date.now()}`,

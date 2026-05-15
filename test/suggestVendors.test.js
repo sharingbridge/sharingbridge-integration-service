@@ -28,11 +28,15 @@ test("rejects request without GPS or manual_area", () => {
   assert.equal(error, "Either lat/lng or manual_area is required.");
 });
 
-test("response includes max five suggestions", () => {
-  const response = buildSuggestVendorsResponse();
+test("response includes max five suggestions with vendor search urls", () => {
+  const response = buildSuggestVendorsResponse({
+    manual_area: "Chennai"
+  });
   assert.ok(Array.isArray(response.suggestions));
   assert.ok(response.suggestions.length <= 5);
   assert.ok(typeof response.generated_at === "string");
+  const first = response.suggestions[0];
+  assert.match(first.order_url, /zomato\.com|swiggy\.com/);
 });
 
 test("accepts valid save presets request", () => {

@@ -1,31 +1,56 @@
-// MVP mock: response is fixed (does not vary with query_text). Real search/AI would
-// replace this. Clients should still show all menu_items — see mobile Donor Setup list.
+// MVP catalog — order_url filled at response time via vendor search deep links.
 const MOCK_SUGGESTIONS = [
   {
     restaurant_name: "A2B",
     menu_items: ["Mini Meals", "Curd Rice"],
-    order_url: "https://www.zomato.com/chennai/a2b/order",
     app_name: "Zomato",
     confidence: 0.92,
-    notes: "Popular around current location"
+    notes: "Opens vendor search — pick the correct outlet in the app"
   },
   {
     restaurant_name: "Saravana Bhavan",
     menu_items: ["Idli Sambar", "Pongal"],
-    order_url: "https://www.swiggy.com/city/chennai/saravana-bhavan/order",
     app_name: "Swiggy",
     confidence: 0.88,
-    notes: "Strong vegetarian breakfast options"
+    notes: "Opens vendor search — pick the correct outlet in the app"
   },
   {
     restaurant_name: "Sangeetha Veg",
     menu_items: ["Lemon Rice Combo", "Bisibele Bath"],
-    order_url: "https://www.zomato.com/chennai/sangeetha/order",
     app_name: "Zomato",
     confidence: 0.84,
-    notes: "Good daytime meal options"
+    notes: "Opens vendor search — pick the correct outlet in the app"
   }
 ];
+
+function normalizeCity(manualArea) {
+  if (!isNonEmptyString(manualArea)) {
+    return "chennai";
+  }
+  const token = manualArea.trim().split(",")[0].split(/\s+/)[0].toLowerCase();
+  return token || "chennai";
+}
+
+export function buildVendorSearchUrl(appName, restaurantName, city = "chennai") {
+  const query = encodeURIComponent((restaurantName || "").trim());
+  const app = (appName || "").trim().toLowerCase();
+  const citySlug = (city || "chennai").trim().toLowerCase();
+  if (app === "zomato") {
+    return `https://www.zomato.com/${citySlug}/restaurants?q=${query}`;
+  }
+  if (app === "swiggy") {
+    return `https://www.swiggy.com/search?query=${query}`;
+  }
+  return `https://www.google.com/search?q=${query}+${encodeURIComponent(appName)}+food+delivery`;
+}
+
+function enrichSuggestionUrls(suggestions, payload) {
+  const city = normalizeCity(payload?.manual_area);
+  return suggestions.map((item) => ({
+    ...item,
+    order_url: buildVendorSearchUrl(item.app_name, item.restaurant_name, city)
+  }));
+}
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -58,9 +83,9 @@ export function validateSuggestVendorsRequest(payload) {
   return null;
 }
 
-export function buildSuggestVendorsResponse() {
+export function buildSuggestVendorsResponse(payload = {}) {
   return {
-    suggestions: MOCK_SUGGESTIONS.slice(0, 5),
+    suggestions: enrichSuggestionUrls(MOCK_SUGGESTIONS.slice(0, 5), payload),
     generated_at: new Date().toISOString(),
     source: "mock"
   };
@@ -77,11 +102,11 @@ export async function resolveSuggestVendorsResponse(payload, { aiClient } = {}) 
         source: upstream.source || "orchestration"
       };
     } catch {
-      const fallback = buildSuggestVendorsResponse();
+      const fallback = buildSuggestVendorsResponse(payload);
       return { ...fallback, source: "mock_fallback" };
     }
   }
-  return buildSuggestVendorsResponse();
+  return buildSuggestVendorsResponse(payload);
 }
 
 function isPresetItem(item) {
