@@ -73,13 +73,6 @@ export function validateSuggestVendorsRequest(payload) {
     return "location_precision is required.";
   }
 
-  const hasGps = isNumber(payload.lat) && isNumber(payload.lng);
-  const hasManual = isNonEmptyString(payload.manual_area);
-
-  if (!hasGps && !hasManual) {
-    return "Either lat/lng or manual_area is required.";
-  }
-
   return null;
 }
 

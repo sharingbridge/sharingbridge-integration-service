@@ -20,7 +20,7 @@ services:
       # Set after user-service and ai-orchestration are live:
       # AUTH_TOKEN_SECRET (same as user-service)
       # USER_SERVICE_BASE_URL, AI_ORCHESTRATION_BASE_URL
-      - key: AI_ORCHESTRATION_INTERNAL_TOKEN
+      - key: AI_ORCHESTRATION_INTERNAL_API_KEY
         generateValue: true
       - key: AI_ORCHESTRATION_TIMEOUT_MS
         value: "15000"

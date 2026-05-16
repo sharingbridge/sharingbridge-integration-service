@@ -72,7 +72,7 @@ When `AI_ORCHESTRATION_BASE_URL` is set and feature flags are on, integration-se
 | `AI_ORCHESTRATION_BASE_URL` | e.g. `http://localhost:8091` |
 | `AI_SUGGEST_VENDORS_ENABLED` | `true` → query-ranked suggestions from orchestration |
 | `AI_INSTRUCTION_PACK_ENABLED` | `true` → instruction-pack from orchestration |
-| `AI_ORCHESTRATION_INTERNAL_TOKEN` | optional shared secret (`X-Internal-Token`) |
+| `AI_ORCHESTRATION_INTERNAL_API_KEY` | optional static service key (`X-Internal-Api-Key`) |
 
 Copy `.env.example` for a local three-service stack. On orchestration failure, suggest-vendors falls back to the fixed mock list; instruction-pack falls back to a server-side template.
 

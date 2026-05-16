@@ -33,12 +33,12 @@ export class AiOrchestrationError extends Error {
 export class AiOrchestrationClient {
   constructor({
     baseUrl = process.env.AI_ORCHESTRATION_BASE_URL,
-    internalToken = process.env.AI_ORCHESTRATION_INTERNAL_TOKEN,
+    internalApiKey = process.env.AI_ORCHESTRATION_INTERNAL_API_KEY,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     fetchImpl = globalThis.fetch
   } = {}) {
     this.baseUrl = (baseUrl || "").replace(/\/$/, "");
-    this.internalToken = internalToken || "";
+    this.internalApiKey = internalApiKey || "";
     this.timeoutMs = timeoutMs;
     this.fetchImpl = fetchImpl;
   }
@@ -56,8 +56,8 @@ export class AiOrchestrationClient {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     const headers = { "content-type": "application/json" };
-    if (this.internalToken) {
-      headers["x-internal-token"] = this.internalToken;
+    if (this.internalApiKey) {
+      headers["x-internal-api-key"] = this.internalApiKey;
     }
 
     let response;

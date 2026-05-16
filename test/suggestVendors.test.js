@@ -19,13 +19,13 @@ test("accepts valid GPS-based request", () => {
   assert.equal(error, null);
 });
 
-test("rejects request without GPS or manual_area", () => {
+test("accepts request without GPS or manual_area", () => {
   const error = validateSuggestVendorsRequest({
     query_text: "swiggy idli",
-    location_precision: "manual_area",
+    location_precision: "unspecified",
     client_platform: "flutter-ios"
   });
-  assert.equal(error, "Either lat/lng or manual_area is required.");
+  assert.equal(error, null);
 });
 
 test("response includes max five suggestions with vendor search urls", () => {
