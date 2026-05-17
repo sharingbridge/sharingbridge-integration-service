@@ -25,7 +25,9 @@ import {
 import { OrderIntentStore } from "./orderIntentStore.js";
 import {
   buildOrderIntentRecord,
+  formatOrderIntentForApi,
   mergeOrderIntentRecord,
+  sortOrderIntentsNewestFirst,
   validateCreateOrderIntentRequest
 } from "./orderIntents.js";
 
@@ -171,6 +173,30 @@ export function createIntegrationServer({
         });
 
       return;
+    }
+
+    if (
+      req.method === "GET" &&
+      (req.url === "/v1/donor-seeker/order-intents" ||
+        req.url.startsWith("/v1/donor-seeker/order-intents?"))
+    ) {
+      const requestUrl = new URL(req.url, "http://localhost");
+      const queryUserId = requestUrl.searchParams.get("user_id");
+      const headerUserId = extractUserIdFromHeaders(req.headers);
+      const { userId, error: authError } = resolveAuthenticatedUserId({
+        headerUserId,
+        supplied: queryUserId
+      });
+      if (authError) {
+        return sendJson(res, authError.status, authError.body);
+      }
+      const records = sortOrderIntentsNewestFirst(
+        orderIntentStore.listForUser(userId)
+      );
+      return sendJson(res, 200, {
+        user_id: userId,
+        order_intents: records.map(formatOrderIntentForApi)
+      });
     }
 
     if (

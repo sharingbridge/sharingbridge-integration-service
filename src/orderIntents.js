@@ -57,6 +57,33 @@ export function buildOrderIntentRecord(payload, { userId }) {
   };
 }
 
+export function formatOrderIntentForApi(record) {
+  return {
+    order_intent_id: record.id,
+    pack_id: record.pack_id,
+    status: record.status,
+    has_reference_photo: Boolean(record.has_reference_photo),
+    verbal_handover_notes: record.verbal_handover_notes ?? "",
+    presets_snapshot: Array.isArray(record.presets_snapshot)
+      ? record.presets_snapshot
+      : [],
+    selected_preset:
+      record.selected_preset && typeof record.selected_preset === "object"
+        ? record.selected_preset
+        : null,
+    created_at: record.created_at,
+    updated_at: record.updated_at
+  };
+}
+
+export function sortOrderIntentsNewestFirst(records) {
+  return [...records].sort((left, right) => {
+    const rightTime = Date.parse(right.updated_at || right.created_at || 0);
+    const leftTime = Date.parse(left.updated_at || left.created_at || 0);
+    return rightTime - leftTime;
+  });
+}
+
 export function mergeOrderIntentRecord(existing, payload) {
   const now = new Date().toISOString();
   return {
