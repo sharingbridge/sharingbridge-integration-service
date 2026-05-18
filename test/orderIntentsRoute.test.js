@@ -43,24 +43,34 @@ test("POST order-intents registers intent when instructions copied", async (t) =
   const port = server.address().port;
   t.after(() => server.close());
 
-  const { status, body } = await postJson(
-    `http://127.0.0.1:${port}`,
-    "/v1/donor-seeker/order-intents",
+  const aliceToken = mintAuthToken("alice", { role: "donor" });
+
+  const { status, body } = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents`,
     {
-      user_id: "alice",
-      pack_id: "pack-test-1",
-      status: "instructions_copied",
-      has_reference_photo: true,
-      verbal_handover_notes: "blue gate",
-      presets_snapshot: [
-        {
-          restaurant_name: "A2B",
-          app_name: "Zomato",
-          order_url: "https://www.zomato.com/x"
-        }
-      ]
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${aliceToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        pack_id: "pack-test-1",
+        status: "instructions_copied",
+        has_reference_photo: true,
+        verbal_handover_notes: "blue gate",
+        presets_snapshot: [
+          {
+            restaurant_name: "A2B",
+            app_name: "Zomato",
+            order_url: "https://www.zomato.com/x"
+          }
+        ]
+      })
     }
-  );
+  ).then(async (r) => ({
+    status: r.status,
+    body: JSON.parse(await r.text())
+  }));
 
   assert.equal(status, 201);
   assert.match(body.order_intent_id, /^oi-/);
@@ -72,17 +82,25 @@ test("POST order-intents registers intent when instructions copied", async (t) =
 
   const firstId = body.order_intent_id;
 
-  const { status: status2, body: body2 } = await postJson(
-    `http://127.0.0.1:${port}`,
-    "/v1/donor-seeker/order-intents",
+  const { status: status2, body: body2 } = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents`,
     {
-      user_id: "alice",
-      pack_id: "pack-test-1",
-      status: "instructions_copied",
-      has_reference_photo: false,
-      verbal_handover_notes: "updated notes"
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${aliceToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        pack_id: "pack-test-1",
+        status: "instructions_copied",
+        has_reference_photo: false,
+        verbal_handover_notes: "updated notes"
+      })
     }
-  );
+  ).then(async (r) => ({
+    status: r.status,
+    body: JSON.parse(await r.text())
+  }));
 
   assert.equal(status2, 200);
   assert.equal(body2.order_intent_id, firstId);
@@ -112,4 +130,71 @@ test("POST order-intents registers intent when instructions copied", async (t) =
     listAuthedBody.order_intents[0].verbal_handover_notes,
     "updated notes"
   );
+});
+
+test("coordinator lists order intents across donors", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-order-coord-"));
+  t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
+
+  const store = new PreferencesStore(path.join(tempDir, "preferences.json"));
+  const repo = new LocalPreferencesRepository(store);
+  await repo.init();
+  const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
+  await orderIntentStore.init();
+
+  const server = createIntegrationServer({
+    preferencesRepository: repo,
+    orderIntentStore
+  });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const port = server.address().port;
+  t.after(() => server.close());
+
+  const aliceToken = mintAuthToken("alice", { role: "donor" });
+  await fetch(`http://127.0.0.1:${port}/v1/donor-seeker/order-intents`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${aliceToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      pack_id: "pack-alice",
+      status: "instructions_copied",
+      has_reference_photo: false,
+      presets_snapshot: []
+    })
+  });
+
+  const bobToken = mintAuthToken("bob", { role: "donor" });
+  await fetch(`http://127.0.0.1:${port}/v1/donor-seeker/order-intents`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${bobToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      pack_id: "pack-bob",
+      status: "instructions_copied",
+      has_reference_photo: false,
+      presets_snapshot: []
+    })
+  });
+
+  const coordToken = mintAuthToken("coord-1", { role: "coordinator" });
+  const listRes = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents`,
+    { headers: { authorization: `Bearer ${coordToken}` } }
+  );
+  const listBody = JSON.parse(await listRes.text());
+  assert.equal(listRes.status, 200);
+  assert.equal(listBody.role, "coordinator");
+  assert.equal(listBody.order_intents.length, 2);
+
+  const donorList = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents`,
+    { headers: { authorization: `Bearer ${aliceToken}` } }
+  );
+  const donorBody = JSON.parse(await donorList.text());
+  assert.equal(donorBody.order_intents.length, 1);
+  assert.equal(donorBody.order_intents[0].pack_id, "pack-alice");
 });

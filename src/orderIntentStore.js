@@ -107,4 +107,21 @@ export class OrderIntentStore {
   listForUser(userId) {
     return Array.isArray(this.byUser[userId]) ? [...this.byUser[userId]] : [];
   }
+
+  /** All intents across donors (coordinator dashboard). */
+  listAll({ userIdFilter = null } = {}) {
+    const rows = [];
+    for (const [userId, list] of Object.entries(this.byUser)) {
+      if (!Array.isArray(list)) {
+        continue;
+      }
+      if (userIdFilter && userId !== userIdFilter) {
+        continue;
+      }
+      for (const record of list) {
+        rows.push(record);
+      }
+    }
+    return rows;
+  }
 }

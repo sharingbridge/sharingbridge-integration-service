@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { AiOrchestrationClient } from "../src/aiOrchestrationClient.js";
 import { createIntegrationServer } from "../src/server.js";
+import { mintAuthToken } from "../src/tokenService.js";
 import { LocalPreferencesRepository } from "../src/preferencesRepository.js";
 import { PreferencesStore } from "../src/preferencesStore.js";
 
@@ -137,22 +138,30 @@ test("instruction-pack returns orchestrated delivery text", async (t) => {
   const integrationPort = integration.address().port;
   t.after(() => integration.close());
 
-  const { status, body } = await postJson(
-    `http://127.0.0.1:${integrationPort}`,
-    "/v1/donor-seeker/instruction-pack",
+  const donorToken = mintAuthToken("demo-user", { role: "donor" });
+  const response = await fetch(
+    `http://127.0.0.1:${integrationPort}/v1/donor-seeker/instruction-pack`,
     {
-      user_id: "demo-user",
-      verbal_handover_notes: "red gate",
-      has_reference_photo: false,
-      presets: [
-        {
-          restaurant_name: "Cafe",
-          menu_items: ["Soup"],
-          app_name: "Swiggy"
-        }
-      ]
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${donorToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        verbal_handover_notes: "red gate",
+        has_reference_photo: false,
+        presets: [
+          {
+            restaurant_name: "Cafe",
+            menu_items: ["Soup"],
+            app_name: "Swiggy"
+          }
+        ]
+      })
     }
   );
+  const status = response.status;
+  const body = JSON.parse(await response.text());
 
   assert.equal(status, 200);
   assert.match(body.delivery_instructions, /red gate/);

@@ -1,4 +1,5 @@
 import { verifyAuthToken } from "./tokenService.js";
+import { normalizeRole } from "./roles.js";
 
 function readBearerToken(authorizationHeader) {
   if (typeof authorizationHeader !== "string") return null;
@@ -7,18 +8,78 @@ function readBearerToken(authorizationHeader) {
   return trimmed.slice(7).trim();
 }
 
-export function extractUserIdFromHeaders(headers) {
+export function extractAuthFromHeaders(headers) {
   if (!headers) return null;
 
   const token = readBearerToken(headers["authorization"]);
   if (token) {
     try {
-      return verifyAuthToken(token).sub;
+      const payload = verifyAuthToken(token);
+      return {
+        userId: payload.sub,
+        role: normalizeRole(payload.role)
+      };
     } catch {
       return null;
     }
   }
   return null;
+}
+
+export function extractUserIdFromHeaders(headers) {
+  return extractAuthFromHeaders(headers)?.userId ?? null;
+}
+
+export function requireDonorRole(auth) {
+  if (!auth) {
+    return {
+      error: {
+        status: 401,
+        body: {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        }
+      }
+    };
+  }
+  if (auth.role !== "donor") {
+    return {
+      error: {
+        status: 403,
+        body: {
+          code: "forbidden",
+          message: "This action requires a donor account."
+        }
+      }
+    };
+  }
+  return { error: null };
+}
+
+export function requireCoordinatorRole(auth) {
+  if (!auth) {
+    return {
+      error: {
+        status: 401,
+        body: {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        }
+      }
+    };
+  }
+  if (auth.role !== "coordinator") {
+    return {
+      error: {
+        status: 403,
+        body: {
+          code: "forbidden",
+          message: "This action requires a coordinator account."
+        }
+      }
+    };
+  }
+  return { error: null };
 }
 
 /**

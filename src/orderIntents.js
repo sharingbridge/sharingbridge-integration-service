@@ -60,6 +60,7 @@ export function buildOrderIntentRecord(payload, { userId }) {
 export function formatOrderIntentForApi(record) {
   return {
     order_intent_id: record.id,
+    user_id: record.user_id ?? null,
     pack_id: record.pack_id,
     status: record.status,
     has_reference_photo: Boolean(record.has_reference_photo),

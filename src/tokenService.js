@@ -19,8 +19,13 @@ export function mintAuthToken(userId, options = {}) {
   const audience = options.audience || DEFAULT_AUDIENCE;
   const ttlSeconds = options.ttlSeconds || 3600;
   const now = Math.floor(Date.now() / 1000);
+  const role =
+    typeof options.role === "string" && options.role.trim()
+      ? options.role.trim()
+      : "donor";
   const payload = {
     sub: userId,
+    role,
     iss: issuer,
     aud: audience,
     iat: now,

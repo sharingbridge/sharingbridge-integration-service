@@ -20,7 +20,9 @@ import {
   UserServicePreferencesRepository
 } from "./preferencesRepository.js";
 import {
+  extractAuthFromHeaders,
   extractUserIdFromHeaders,
+  requireDonorRole,
   resolveAuthenticatedUserId
 } from "./authContext.js";
 import { OrderIntentStore } from "./orderIntentStore.js";
@@ -141,7 +143,12 @@ export function createIntegrationServer({
     ) {
       readJsonBody(req)
         .then(async (payload) => {
-          const headerUserId = extractUserIdFromHeaders(req.headers);
+          const auth = extractAuthFromHeaders(req.headers);
+          const donorGuard = requireDonorRole(auth);
+          if (donorGuard.error) {
+            return sendJson(res, donorGuard.error.status, donorGuard.error.body);
+          }
+          const headerUserId = auth.userId;
           const suppliedUserId =
             typeof payload.user_id === "string" ? payload.user_id.trim() : "";
           let userId = headerUserId || suppliedUserId || null;
@@ -194,9 +201,29 @@ export function createIntegrationServer({
     ) {
       const requestUrl = new URL(req.url, "http://localhost");
       const queryUserId = requestUrl.searchParams.get("user_id");
-      const headerUserId = extractUserIdFromHeaders(req.headers);
+      const auth = extractAuthFromHeaders(req.headers);
+      if (!auth) {
+        return sendJson(res, 401, {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        });
+      }
+      if (auth.role === "coordinator") {
+        const filter =
+          typeof queryUserId === "string" && queryUserId.trim()
+            ? queryUserId.trim()
+            : null;
+        const records = sortOrderIntentsNewestFirst(
+          orderIntentStore.listAll({ userIdFilter: filter })
+        );
+        return sendJson(res, 200, {
+          user_id: auth.userId,
+          role: auth.role,
+          order_intents: records.map(formatOrderIntentForApi)
+        });
+      }
       const { userId, error: authError } = resolveAuthenticatedUserId({
-        headerUserId,
+        headerUserId: auth.userId,
         supplied: queryUserId
       });
       if (authError) {
@@ -207,6 +234,7 @@ export function createIntegrationServer({
       );
       return sendJson(res, 200, {
         user_id: userId,
+        role: auth.role,
         order_intents: records.map(formatOrderIntentForApi)
       });
     }
@@ -217,7 +245,12 @@ export function createIntegrationServer({
     ) {
       readJsonBody(req)
         .then(async (payload) => {
-          const headerUserId = extractUserIdFromHeaders(req.headers);
+          const auth = extractAuthFromHeaders(req.headers);
+          const donorGuard = requireDonorRole(auth);
+          if (donorGuard.error) {
+            return sendJson(res, donorGuard.error.status, donorGuard.error.body);
+          }
+          const headerUserId = auth.userId;
           const suppliedUserId =
             typeof payload.user_id === "string" ? payload.user_id.trim() : "";
           let userId = headerUserId || suppliedUserId || null;
