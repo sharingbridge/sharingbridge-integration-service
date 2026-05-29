@@ -22,10 +22,9 @@ This repository contains the **Integration Service** - handles all third-party v
 
 For overall project context, see the [main SharingBridge repository](https://github.com/sharingbridge/sharingbridge).
 
-## Repository Status
+## Status
 
-🚧 **Status:** Initial Setup  
-📅 **Date:** January 9, 2026
+**Shipped:** Donor setup, instruction-pack, order intents (`POST/GET /v1/donor-seeker/order-intents`). **Doc map:** [AGENT_HANDOFF.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/AGENT_HANDOFF.md) § Documentation map.
 
 ## Getting Started
 
