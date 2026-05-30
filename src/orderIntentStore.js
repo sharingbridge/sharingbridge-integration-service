@@ -69,7 +69,6 @@ export class OrderIntentStore {
   }
 
   async createForUser(userId, record) {
-    await this.init();
     this._listForUser(userId).push(record);
     return record;
   }
@@ -79,7 +78,6 @@ export class OrderIntentStore {
    * @returns {{ record: object, created: boolean }}
    */
   async upsertForUser(userId, record) {
-    await this.init();
     const list = this._listForUser(userId);
     const packId =
       typeof record?.pack_id === "string" ? record.pack_id.trim() : "";

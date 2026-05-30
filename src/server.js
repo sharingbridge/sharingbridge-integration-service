@@ -26,6 +26,7 @@ import {
   resolveAuthenticatedUserId
 } from "./authContext.js";
 import { OrderIntentStore } from "./orderIntentStore.js";
+import { PostgresOrderIntentStore } from "./postgresOrderIntentStore.js";
 import {
   buildOrderIntentRecord,
   formatOrderIntentForApi,
@@ -92,7 +93,7 @@ export function createIntegrationServer({
   if (!orderIntentStore) {
     throw new Error("createIntegrationServer requires orderIntentStore");
   }
-  return createServer((req, res) => {
+  return createServer(async (req, res) => {
     applyCorsHeaders(req, res, corsConfig);
     if (handleCorsPreflight(req, res, corsConfig)) {
       return;
@@ -214,7 +215,7 @@ export function createIntegrationServer({
             ? queryUserId.trim()
             : null;
         const records = sortOrderIntentsNewestFirst(
-          orderIntentStore.listAll({ userIdFilter: filter })
+          await orderIntentStore.listAll({ userIdFilter: filter })
         );
         return sendJson(res, 200, {
           user_id: auth.userId,
@@ -230,7 +231,7 @@ export function createIntegrationServer({
         return sendJson(res, authError.status, authError.body);
       }
       const records = sortOrderIntentsNewestFirst(
-        orderIntentStore.listForUser(userId)
+        await orderIntentStore.listForUser(userId)
       );
       return sendJson(res, 200, {
         user_id: userId,
@@ -243,97 +244,93 @@ export function createIntegrationServer({
       req.method === "POST" &&
       req.url === "/v1/donor-seeker/order-intents"
     ) {
-      readJsonBody(req)
-        .then(async (payload) => {
-          const auth = extractAuthFromHeaders(req.headers);
-          const donorGuard = requireDonorRole(auth);
-          if (donorGuard.error) {
-            return sendJson(res, donorGuard.error.status, donorGuard.error.body);
-          }
-          const headerUserId = auth.userId;
-          const suppliedUserId =
-            typeof payload.user_id === "string" ? payload.user_id.trim() : "";
-          let userId = headerUserId || suppliedUserId || null;
-          if (
-            headerUserId &&
-            suppliedUserId &&
-            headerUserId !== suppliedUserId
-          ) {
-            return sendJson(res, 403, {
-              code: "user_id_mismatch",
-              message:
-                "user_id in payload does not match the authenticated user_id."
-            });
-          }
-          if (!userId) {
-            return sendJson(res, 400, {
-              code: "invalid_request",
-              message: "user_id is required when no Bearer token is supplied."
-            });
-          }
+      try {
+        const payload = await readJsonBody(req);
+        const auth = extractAuthFromHeaders(req.headers);
+        const donorGuard = requireDonorRole(auth);
+        if (donorGuard.error) {
+          return sendJson(res, donorGuard.error.status, donorGuard.error.body);
+        }
+        const headerUserId = auth.userId;
+        const suppliedUserId =
+          typeof payload.user_id === "string" ? payload.user_id.trim() : "";
+        let userId = headerUserId || suppliedUserId || null;
+        if (
+          headerUserId &&
+          suppliedUserId &&
+          headerUserId !== suppliedUserId
+        ) {
+          return sendJson(res, 403, {
+            code: "user_id_mismatch",
+            message:
+              "user_id in payload does not match the authenticated user_id."
+          });
+        }
+        if (!userId) {
+          return sendJson(res, 400, {
+            code: "invalid_request",
+            message: "user_id is required when no Bearer token is supplied."
+          });
+        }
 
-          const validationError = validateCreateOrderIntentRequest(payload);
-          if (validationError) {
-            return sendJson(res, 400, {
-              code: "invalid_request",
-              message: validationError
-            });
-          }
+        const validationError = validateCreateOrderIntentRequest(payload);
+        if (validationError) {
+          return sendJson(res, 400, {
+            code: "invalid_request",
+            message: validationError
+          });
+        }
 
-          const packId =
-            typeof payload.pack_id === "string"
-              ? payload.pack_id.trim()
-              : typeof payload.instruction_pack_id === "string"
-                ? payload.instruction_pack_id.trim()
-                : "";
-          const existingByPack =
-            packId.length > 0
-              ? orderIntentStore.findByPackId(userId, packId)
-              : null;
-          const suppliedIntentId =
-            typeof payload.order_intent_id === "string"
-              ? payload.order_intent_id.trim()
+        const packId =
+          typeof payload.pack_id === "string"
+            ? payload.pack_id.trim()
+            : typeof payload.instruction_pack_id === "string"
+              ? payload.instruction_pack_id.trim()
               : "";
-          const existingById =
-            !existingByPack && suppliedIntentId
-              ? orderIntentStore.findById(userId, suppliedIntentId)
-              : null;
-          const existing = existingByPack || existingById;
+        const existingByPack =
+          packId.length > 0
+            ? await orderIntentStore.findByPackId(userId, packId)
+            : null;
+        const suppliedIntentId =
+          typeof payload.order_intent_id === "string"
+            ? payload.order_intent_id.trim()
+            : "";
+        const existingById =
+          !existingByPack && suppliedIntentId
+            ? await orderIntentStore.findById(userId, suppliedIntentId)
+            : null;
+        const existing = existingByPack || existingById;
 
-          let record;
-          let created;
-          if (existing) {
-            record = mergeOrderIntentRecord(existing, payload);
-            ({ created } = await orderIntentStore.upsertForUser(userId, record));
-          } else {
-            record = buildOrderIntentRecord(payload, { userId });
-            ({ created } = await orderIntentStore.upsertForUser(userId, record));
-          }
-          await orderIntentStore.persist();
-          return sendJson(res, created ? 201 : 200, {
-            order_intent_id: record.id,
-            user_id: userId,
-            pack_id: record.pack_id,
-            status: record.status,
-            created_at: record.created_at,
-            updated_at: record.updated_at,
-            created
-          });
-        })
-        .catch((error) => {
-          if (error?.message === "invalid_json") {
-            return sendJson(res, 400, {
-              code: "invalid_json",
-              message: "Request body must be valid JSON."
-            });
-          }
-          return sendJson(res, 500, {
-            code: "internal_error",
-            message: error?.message || "Unexpected error."
-          });
+        let record;
+        let created;
+        if (existing) {
+          record = mergeOrderIntentRecord(existing, payload);
+          ({ created } = await orderIntentStore.upsertForUser(userId, record));
+        } else {
+          record = buildOrderIntentRecord(payload, { userId });
+          ({ created } = await orderIntentStore.upsertForUser(userId, record));
+        }
+        return sendJson(res, created ? 201 : 200, {
+          order_intent_id: record.id,
+          user_id: userId,
+          pack_id: record.pack_id,
+          status: record.status,
+          created_at: record.created_at,
+          updated_at: record.updated_at,
+          created
         });
-
-      return;
+      } catch (error) {
+        if (error?.message === "invalid_json") {
+          return sendJson(res, 400, {
+            code: "invalid_json",
+            message: "Request body must be valid JSON."
+          });
+        }
+        return sendJson(res, 500, {
+          code: "internal_error",
+          message: error?.message || "Unexpected error."
+        });
+      }
     }
 
     if (
@@ -584,6 +581,18 @@ export function createIntegrationServer({
   });
 }
 
+async function buildDefaultOrderIntentStore() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl?.trim()) {
+    throw new Error(
+      "DATABASE_URL is required. See configuration/database.md."
+    );
+  }
+  const store = await PostgresOrderIntentStore.create(databaseUrl);
+  await store.init();
+  return store;
+}
+
 function buildDefaultPreferencesRepository() {
   const backend = (process.env.PREFERENCES_BACKEND || "local").toLowerCase();
   if (backend === "user_service") {
@@ -603,17 +612,24 @@ const isMainModule =
   process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   const preferencesRepository = buildDefaultPreferencesRepository();
-  const orderIntentStore = new OrderIntentStore();
-  const server = createIntegrationServer({
-    preferencesRepository,
-    orderIntentStore
-  });
-  Promise.all([preferencesRepository.init(), orderIntentStore.init()]).then(
-    () => {
-      server.listen(DEFAULT_PORT, () => {
-        // eslint-disable-next-line no-console
-        console.log(`Integration service listening on ${DEFAULT_PORT}`);
+  buildDefaultOrderIntentStore()
+    .then((orderIntentStore) => {
+      const server = createIntegrationServer({
+        preferencesRepository,
+        orderIntentStore
       });
-    }
-  );
+      return Promise.all([preferencesRepository.init()]).then(() => {
+        server.listen(DEFAULT_PORT, () => {
+          // eslint-disable-next-line no-console
+          console.log(
+            `Integration service listening on ${DEFAULT_PORT} (PostgreSQL)`
+          );
+        });
+      });
+    })
+    .catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error(error.message || error);
+      process.exit(1);
+    });
 }
