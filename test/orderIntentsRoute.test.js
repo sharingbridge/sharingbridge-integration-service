@@ -57,6 +57,9 @@ test("POST order-intents registers intent when instructions copied", async (t) =
         pack_id: "pack-test-1",
         status: "instructions_copied",
         has_reference_photo: true,
+        reference_photo_artifact_id: "pa-test-1",
+        reference_photo_view_url: "https://res.cloudinary.com/demo/view.jpg",
+        reference_photo_thumbnail_url: "https://res.cloudinary.com/demo/thumb.jpg",
         verbal_handover_notes: "blue gate",
         presets_snapshot: [
           {
@@ -79,6 +82,11 @@ test("POST order-intents registers intent when instructions copied", async (t) =
 
   const saved = orderIntentStore.listForUser("alice");
   assert.equal(saved.length, 1);
+  assert.equal(saved[0].reference_photo_artifact_id, "pa-test-1");
+  assert.equal(
+    saved[0].reference_photo_view_url,
+    "https://res.cloudinary.com/demo/view.jpg"
+  );
 
   const firstId = body.order_intent_id;
 
@@ -110,6 +118,7 @@ test("POST order-intents registers intent when instructions copied", async (t) =
   assert.equal(body2.updated_at, savedAfter[0].updated_at);
   assert.equal(savedAfter[0].verbal_handover_notes, "updated notes");
   assert.equal(savedAfter[0].has_reference_photo, false);
+  assert.equal(savedAfter[0].reference_photo_artifact_id, "");
 
   const { status: listStatus, body: listBody } = await getJson(
     `http://127.0.0.1:${port}`,

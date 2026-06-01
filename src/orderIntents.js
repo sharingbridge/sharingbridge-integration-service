@@ -41,6 +41,18 @@ export function buildOrderIntentRecord(payload, { userId }) {
     pack_id: packId,
     status: payload.status || "instructions_copied",
     has_reference_photo: Boolean(payload.has_reference_photo),
+    reference_photo_artifact_id:
+      typeof payload.reference_photo_artifact_id === "string"
+        ? payload.reference_photo_artifact_id.trim()
+        : "",
+    reference_photo_view_url:
+      typeof payload.reference_photo_view_url === "string"
+        ? payload.reference_photo_view_url.trim()
+        : "",
+    reference_photo_thumbnail_url:
+      typeof payload.reference_photo_thumbnail_url === "string"
+        ? payload.reference_photo_thumbnail_url.trim()
+        : "",
     verbal_handover_notes:
       typeof payload.verbal_handover_notes === "string"
         ? payload.verbal_handover_notes.trim()
@@ -64,6 +76,9 @@ export function formatOrderIntentForApi(record) {
     pack_id: record.pack_id,
     status: record.status,
     has_reference_photo: Boolean(record.has_reference_photo),
+    reference_photo_artifact_id: record.reference_photo_artifact_id ?? "",
+    reference_photo_view_url: record.reference_photo_view_url ?? "",
+    reference_photo_thumbnail_url: record.reference_photo_thumbnail_url ?? "",
     verbal_handover_notes: record.verbal_handover_notes ?? "",
     presets_snapshot: Array.isArray(record.presets_snapshot)
       ? record.presets_snapshot
@@ -94,6 +109,24 @@ export function mergeOrderIntentRecord(existing, payload) {
       payload.has_reference_photo != null
         ? Boolean(payload.has_reference_photo)
         : existing.has_reference_photo,
+    reference_photo_artifact_id:
+      payload.has_reference_photo === false
+        ? ""
+        : typeof payload.reference_photo_artifact_id === "string"
+          ? payload.reference_photo_artifact_id.trim()
+          : existing.reference_photo_artifact_id,
+    reference_photo_view_url:
+      payload.has_reference_photo === false
+        ? ""
+        : typeof payload.reference_photo_view_url === "string"
+          ? payload.reference_photo_view_url.trim()
+          : existing.reference_photo_view_url,
+    reference_photo_thumbnail_url:
+      payload.has_reference_photo === false
+        ? ""
+        : typeof payload.reference_photo_thumbnail_url === "string"
+          ? payload.reference_photo_thumbnail_url.trim()
+          : existing.reference_photo_thumbnail_url,
     verbal_handover_notes:
       typeof payload.verbal_handover_notes === "string"
         ? payload.verbal_handover_notes.trim()

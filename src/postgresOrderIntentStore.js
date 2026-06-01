@@ -7,6 +7,9 @@ function isNonEmptyString(value) {
 function recordToPayload(record) {
   return {
     has_reference_photo: Boolean(record.has_reference_photo),
+    reference_photo_artifact_id: record.reference_photo_artifact_id ?? "",
+    reference_photo_view_url: record.reference_photo_view_url ?? "",
+    reference_photo_thumbnail_url: record.reference_photo_thumbnail_url ?? "",
     verbal_handover_notes: record.verbal_handover_notes ?? "",
     presets_snapshot: Array.isArray(record.presets_snapshot) ? record.presets_snapshot : [],
     selected_preset:
@@ -27,6 +30,9 @@ function rowToRecord(row) {
     pack_id: row.pack_id,
     status: row.status,
     has_reference_photo: Boolean(payload.has_reference_photo),
+    reference_photo_artifact_id: payload.reference_photo_artifact_id ?? "",
+    reference_photo_view_url: payload.reference_photo_view_url ?? "",
+    reference_photo_thumbnail_url: payload.reference_photo_thumbnail_url ?? "",
     verbal_handover_notes: payload.verbal_handover_notes ?? "",
     presets_snapshot: Array.isArray(payload.presets_snapshot) ? payload.presets_snapshot : [],
     selected_preset:
