@@ -8,8 +8,8 @@
  *
  * Environment:
  *   USER_SERVICE_BASE_URL   default http://127.0.0.1:8081
- *   PREFERENCES_DB_PATH     path to preferences.json (same as PreferencesStore)
- *                           default ./data/preferences.json
+ *   LEGACY_PREFERENCES_JSON_PATH  optional path to old data/preferences.json
+ *                                 (default ./data/preferences.json)
  *   BACKFILL_DRY_RUN       if "1"/"true", log only — no PUTs
  */
 
@@ -92,7 +92,7 @@ async function putPresets(baseUrl, userId, presets, bearerToken, dryRun) {
 export async function backfillPrefsToUserService({
   userServiceBaseUrl = process.env.USER_SERVICE_BASE_URL || "http://127.0.0.1:8081",
   preferencesDbPath =
-    process.env.PREFERENCES_DB_PATH ||
+    process.env.LEGACY_PREFERENCES_JSON_PATH?.trim() ||
     "./data/preferences.json",
   dryRun = readEnvBool("BACKFILL_DRY_RUN")
 } = {}) {

@@ -1,20 +1,15 @@
 /**
  * Repository abstraction for donor preferences.
  *
- * The HTTP handlers in server.js depend only on this contract; they do not
- * care whether presets live on disk today or in sharingbridge-user-service
- * tomorrow. Concrete implementations decide where the data actually lives.
+ * Production: UserServicePreferencesRepository (USER_SERVICE_BASE_URL → Postgres).
+ * Tests: LocalPreferencesRepository + PreferencesStore (temp file only).
  *
  * Contract:
- *   init()                          -> Promise<void>
- *   listByUser(userId, opts?)              -> Promise<Preset[]>
- *   upsertForUser(userId, presets, opts?)  -> Promise<Preset[]>  (full set after upsert)
- *   clearForUser(userId, opts?)            -> Promise<Preset[]>  (always [])
- *   removePresetForUser(userId, key, opts?) -> Promise<Preset[]>  (remaining)
- *
- * When the user-service preferences API ships, plug in the remote
- * implementation by setting `PREFERENCES_BACKEND=user_service` and
- * `USER_SERVICE_BASE_URL=...`. The HTTP handlers do not need to change.
+ *   init() -> Promise<void>
+ *   listByUser(userId, opts?) -> Promise<Preset[]>
+ *   upsertForUser(userId, presets, opts?) -> Promise<Preset[]>
+ *   clearForUser(userId, opts?) -> Promise<Preset[]>
+ *   removePresetForUser(userId, key, opts?) -> Promise<Preset[]>
  */
 
 export class LocalPreferencesRepository {

@@ -2,10 +2,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-const DEFAULT_DB_PATH = process.env.PREFERENCES_DB_PATH || "./data/preferences.json";
+/** Default path for unit tests that omit an explicit path (not used at `npm start`). */
+const DEFAULT_TEST_DB_PATH = "./data/preferences.json";
 
 export class PreferencesStore {
-  constructor(dbPath = DEFAULT_DB_PATH) {
+  constructor(dbPath = DEFAULT_TEST_DB_PATH) {
     this.dbPath = dbPath;
     this.state = { byUser: {} };
   }

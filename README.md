@@ -80,12 +80,9 @@ Copy `.env.example` for a local three-service stack. On orchestration failure, s
 
 See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbridge/development/AI_PLATFORM_INTEGRATION.md`.
 
-### Preferences backend selection
+### Donor presets
 
-- `PREFERENCES_BACKEND=local` (default) — file-backed `PreferencesStore`.
-- `PREFERENCES_BACKEND=user_service` — requires `USER_SERVICE_BASE_URL`; forwards to
-  user-service `GET/PUT /v1/users/{id}/donor-presets` and `POST …/delete-item`.
-  See `sharingbridge/development/USER_SERVICE_PREFERENCES_MIGRATION.md`.
+Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. One-off JSON import: `npm run backfill:user-service-presets` (see `USER_SERVICE_PREFERENCES_MIGRATION.md`).
 
 ## Contributing
 

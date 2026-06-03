@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
-import pg from "pg";
 import { AiOrchestrationClient } from "./aiOrchestrationClient.js";
 import {
   resolveInstructionPackResponse,
@@ -14,9 +13,7 @@ import {
   validateSavePresetsRequest,
   validateSuggestVendorsRequest
 } from "./suggestVendors.js";
-import { PreferencesStore } from "./preferencesStore.js";
 import {
-  LocalPreferencesRepository,
   UserServicePreferencesError,
   UserServicePreferencesRepository
 } from "./preferencesRepository.js";
@@ -60,20 +57,6 @@ import {
 
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
 
-/** Shared pool for coordinator donor-email lookup (same DATABASE_URL as order intents). */
-let emailLookupPool;
-
-async function getEmailLookupPool() {
-  const databaseUrl = process.env.DATABASE_URL?.trim();
-  if (!databaseUrl) {
-    return null;
-  }
-  if (!emailLookupPool) {
-    emailLookupPool = new pg.Pool({ connectionString: databaseUrl });
-  }
-  return emailLookupPool;
-}
-
 function sendJson(res, statusCode, body) {
   res.writeHead(statusCode, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
@@ -106,10 +89,8 @@ function readJsonBody(req) {
 
 /**
  * Build an http.Server wired up against the given preferences repository.
- * Tests inject a LocalPreferencesRepository with a temp-directory store;
- * the bin entrypoint at the bottom of this file selects the repository
- * based on the PREFERENCES_BACKEND env var so swapping to user-service is
- * one config flip.
+ * Tests inject a LocalPreferencesRepository with a temp-directory store.
+ * Production startup always uses UserServicePreferencesRepository (Postgres via user-service).
  */
 export function createIntegrationServer({
   preferencesRepository,
@@ -261,14 +242,14 @@ export function createIntegrationServer({
         role: auth.role
       });
       let donorEmailByUserId = {};
-      if (isCoordinatorApiRole(auth.role)) {
-        const lookupPool =
-          orderIntentStore.pool ?? (await getEmailLookupPool());
-        if (lookupPool) {
+      if (isCoordinatorApiRole(auth.role) && orderIntentStore.pool) {
+        try {
           donorEmailByUserId = await lookupDonorEmailsByUserId(
-            lookupPool,
+            orderIntentStore.pool,
             records.map((record) => record.user_id)
           );
+        } catch {
+          donorEmailByUserId = {};
         }
       }
       const orderIntents = await formatOrderIntentsForRole(records, auth.role, {
@@ -661,18 +642,13 @@ async function buildDefaultOrderIntentStore() {
 }
 
 function buildDefaultPreferencesRepository() {
-  const backend = (process.env.PREFERENCES_BACKEND || "local").toLowerCase();
-  if (backend === "user_service") {
-    return new UserServicePreferencesRepository({
-      baseUrl: process.env.USER_SERVICE_BASE_URL
-    });
-  }
-  if (backend !== "local") {
+  const baseUrl = process.env.USER_SERVICE_BASE_URL?.trim();
+  if (!baseUrl) {
     throw new Error(
-      `Unknown PREFERENCES_BACKEND='${backend}'. Expected 'local' or 'user_service'.`
+      "USER_SERVICE_BASE_URL is required. Donor presets are stored in Postgres via user-service."
     );
   }
-  return new LocalPreferencesRepository(new PreferencesStore());
+  return new UserServicePreferencesRepository({ baseUrl });
 }
 
 const isMainModule =
