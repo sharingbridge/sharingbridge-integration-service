@@ -1,4 +1,9 @@
 import pg from "pg";
+import { assertOrderIntentGeoSchema } from "./assertOrderIntentGeoSchema.js";
+import {
+  buildOrderIntentListSql,
+  geoColumnsFromRecord
+} from "./orderIntentGeoSql.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -32,6 +37,17 @@ function rowToRecord(row) {
     typeof row.payload === "object" && row.payload !== null ? row.payload : {};
   const createdAt = row.created_at;
   const updatedAt = row.updated_at;
+  const payloadLat =
+    typeof payload.location_lat === "number" ? payload.location_lat : null;
+  const payloadLng =
+    typeof payload.location_lng === "number" ? payload.location_lng : null;
+  const geoLat = typeof row.geo_lat === "number" ? row.geo_lat : null;
+  const geoLng = typeof row.geo_lng === "number" ? row.geo_lng : null;
+  const columnKey =
+    typeof row.locality_key === "string" ? row.locality_key.trim() : "";
+  const payloadKey =
+    typeof payload.locality_key === "string" ? payload.locality_key.trim() : "";
+
   return {
     id: row.order_intent_id,
     user_id: row.user_id,
@@ -47,17 +63,23 @@ function rowToRecord(row) {
       payload.selected_preset && typeof payload.selected_preset === "object"
         ? payload.selected_preset
         : null,
-    location_lat:
-      typeof payload.location_lat === "number" ? payload.location_lat : null,
-    location_lng:
-      typeof payload.location_lng === "number" ? payload.location_lng : null,
+    location_lat: payloadLat ?? geoLat,
+    location_lng: payloadLng ?? geoLng,
     location_label:
       typeof payload.location_label === "string" ? payload.location_label : "",
-    locality_key:
-      typeof payload.locality_key === "string" ? payload.locality_key : "",
+    locality_key: payloadKey || columnKey,
     created_at: createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
     updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt)
   };
+}
+
+function locationSqlFragment(lngParam, latParam) {
+  return `CASE
+    WHEN ${lngParam}::double precision IS NOT NULL
+     AND ${latParam}::double precision IS NOT NULL
+    THEN ST_SetSRID(ST_MakePoint(${lngParam}::double precision, ${latParam}::double precision), 4326)::geography
+    ELSE NULL
+  END`;
 }
 
 export class PostgresOrderIntentStore {
@@ -73,6 +95,7 @@ export class PostgresOrderIntentStore {
     const client = await pool.connect();
     try {
       await client.query("SELECT 1");
+      await assertOrderIntentGeoSchema(pool);
     } finally {
       client.release();
     }
@@ -117,40 +140,57 @@ export class PostgresOrderIntentStore {
     const payload = recordToPayload(record);
     const createdAt = existing?.created_at ?? record.created_at ?? new Date().toISOString();
     const updatedAt = record.updated_at ?? new Date().toISOString();
+    const { localityKey, lng, lat } = geoColumnsFromRecord(record);
 
     if (existing) {
+      const values = [
+        userId,
+        existing.pack_id,
+        record.status,
+        JSON.stringify(payload),
+        updatedAt,
+        localityKey || null,
+        lng,
+        lat
+      ];
+      const lngParam = "$7";
+      const latParam = "$8";
       const result = await this.pool.query(
         `UPDATE order_intents SET
            status = $3,
            payload = $4::jsonb,
-           updated_at = $5::timestamptz
+           updated_at = $5::timestamptz,
+           locality_key = $6,
+           location = ${locationSqlFragment(lngParam, latParam)}
          WHERE user_id = $1 AND pack_id = $2
          RETURNING order_intent_id, user_id, pack_id, status, payload, created_at, updated_at`,
-        [
-          userId,
-          existing.pack_id,
-          record.status,
-          JSON.stringify(payload),
-          updatedAt
-        ]
+        values
       );
       return { record: rowToRecord(result.rows[0]), created: false };
     }
 
+    const values = [
+      record.id,
+      userId,
+      packId,
+      record.status,
+      JSON.stringify(payload),
+      createdAt,
+      updatedAt,
+      localityKey || null,
+      lng,
+      lat
+    ];
+    const lngParam = "$9";
+    const latParam = "$10";
     const result = await this.pool.query(
       `INSERT INTO order_intents (
-         order_intent_id, user_id, pack_id, status, payload, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5::jsonb, $6::timestamptz, $7::timestamptz)
+         order_intent_id, user_id, pack_id, status, payload, created_at, updated_at,
+         locality_key, location
+       ) VALUES ($1, $2, $3, $4, $5::jsonb, $6::timestamptz, $7::timestamptz, $8,
+         ${locationSqlFragment(lngParam, latParam)})
        RETURNING order_intent_id, user_id, pack_id, status, payload, created_at, updated_at`,
-      [
-        record.id,
-        userId,
-        packId,
-        record.status,
-        JSON.stringify(payload),
-        createdAt,
-        updatedAt
-      ]
+      values
     );
     return { record: rowToRecord(result.rows[0]), created: true };
   }
@@ -175,6 +215,12 @@ export class PostgresOrderIntentStore {
        FROM order_intents
        ORDER BY updated_at DESC`
     );
+    return result.rows.map(rowToRecord);
+  }
+
+  async listForDashboard(opts = {}) {
+    const { text, values } = buildOrderIntentListSql(opts);
+    const result = await this.pool.query(text, values);
     return result.rows.map(rowToRecord);
   }
 }

@@ -32,7 +32,6 @@ import {
   buildOrderIntentRecord,
   formatOrderIntentForApi,
   mergeOrderIntentRecord,
-  sortOrderIntentsNewestFirst,
   validateCreateOrderIntentRequest
 } from "./orderIntents.js";
 import { lookupDonorEmailsByUserId } from "./donorEmailLookup.js";
@@ -40,15 +39,11 @@ import {
   formatOrderIntentsForRole,
   isCoordinatorApiRole
 } from "./orderIntentViews.js";
-import {
-  filterRecordsSince,
-  formatSinceQuery,
-  resolveListSinceMs
-} from "./sinceFilter.js";
+import { listOrderIntentsForDashboard } from "./orderIntentList.js";
+import { formatSinceQuery, resolveListSinceMs } from "./sinceFilter.js";
 import { getDonorNeighbourhoodRadiusKm } from "./donorNeighbourhoodArea.js";
 import { getDonorNeighbourhoodWindowHours } from "./donorNeighbourhoodWindow.js";
 import {
-  filterRecordsByNeighbourhood,
   formatNeighbourhoodResponse,
   resolveNeighbourhoodScope
 } from "./neighbourhoodFilter.js";
@@ -254,22 +249,17 @@ export function createIntegrationServer({
         auth.role,
         requestUrl.searchParams.get("since")
       );
-      let records = sortOrderIntentsNewestFirst(
-        await orderIntentStore.listAll({ userIdFilter: filter })
-      );
-      if (sinceMs != null) {
-        records = filterRecordsSince(records, sinceMs);
-      }
       const neighbourhoodScope = resolveNeighbourhoodScope(
         auth.role,
         requestUrl.searchParams
       );
-      records = filterRecordsByNeighbourhood(
-        records,
+      const records = await listOrderIntentsForDashboard(orderIntentStore, {
+        userIdFilter: filter,
+        sinceMs,
         neighbourhoodScope,
-        auth.userId,
-        auth.role
-      );
+        viewerUserId: auth.userId,
+        role: auth.role
+      });
       let donorEmailByUserId = {};
       if (isCoordinatorApiRole(auth.role)) {
         const lookupPool =

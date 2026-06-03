@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { applyDashboardListFilters } from "./orderIntentListFilters.js";
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = "order-intents.json";
@@ -121,5 +122,13 @@ export class OrderIntentStore {
       }
     }
     return rows;
+  }
+
+  /** Same filters as Postgres `listForDashboard` (in-memory for tests). */
+  listForDashboard(opts = {}) {
+    return applyDashboardListFilters(
+      this.listAll({ userIdFilter: opts.userIdFilter ?? null }),
+      opts
+    );
   }
 }
