@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
+import pg from "pg";
 import { AiOrchestrationClient } from "./aiOrchestrationClient.js";
 import {
   resolveInstructionPackResponse,
@@ -46,6 +47,20 @@ import {
 } from "./cors.js";
 
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
+
+/** Shared pool for coordinator donor-email lookup (same DATABASE_URL as order intents). */
+let emailLookupPool;
+
+async function getEmailLookupPool() {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) {
+    return null;
+  }
+  if (!emailLookupPool) {
+    emailLookupPool = new pg.Pool({ connectionString: databaseUrl });
+  }
+  return emailLookupPool;
+}
 
 function sendJson(res, statusCode, body) {
   res.writeHead(statusCode, { "content-type": "application/json" });
@@ -222,11 +237,15 @@ export function createIntegrationServer({
         await orderIntentStore.listAll({ userIdFilter: filter })
       );
       let donorEmailByUserId = {};
-      if (isCoordinatorApiRole(auth.role) && orderIntentStore.pool) {
-        donorEmailByUserId = await lookupDonorEmailsByUserId(
-          orderIntentStore.pool,
-          records.map((record) => record.user_id)
-        );
+      if (isCoordinatorApiRole(auth.role)) {
+        const lookupPool =
+          orderIntentStore.pool ?? (await getEmailLookupPool());
+        if (lookupPool) {
+          donorEmailByUserId = await lookupDonorEmailsByUserId(
+            lookupPool,
+            records.map((record) => record.user_id)
+          );
+        }
       }
       const orderIntents = await formatOrderIntentsForRole(records, auth.role, {
         donorEmailByUserId
