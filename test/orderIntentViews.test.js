@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   REFERENCE_PHOTO_MAX_AGE_MS,
+  formatOrderIntentCoordinator,
   formatOrderIntentForRole,
   formatOrderIntentLimited
 } from "../src/orderIntentViews.js";
@@ -41,6 +42,21 @@ test("formatOrderIntentLimited keeps photo URLs within one hour", () => {
 
 test("formatOrderIntentForRole uses full view for coordinator", () => {
   const old = recordWithPhoto(REFERENCE_PHOTO_MAX_AGE_MS + 1000);
-  const formatted = formatOrderIntentForRole(old, "coordinator", now);
+  const formatted = formatOrderIntentForRole(old, "coordinator", { nowMs: now });
   assert.equal(formatted.reference_photo_view_url, "https://cdn/view");
+});
+
+test("formatOrderIntentCoordinator includes donor_email when known", () => {
+  const formatted = formatOrderIntentCoordinator(
+    recordWithPhoto(0),
+    { alice: "alice@example.com" },
+    now
+  );
+  assert.equal(formatted.user_id, "alice");
+  assert.equal(formatted.donor_email, "alice@example.com");
+});
+
+test("formatOrderIntentLimited omits donor_email", () => {
+  const formatted = formatOrderIntentLimited(recordWithPhoto(0), now);
+  assert.equal("donor_email" in formatted, false);
 });

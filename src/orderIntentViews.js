@@ -36,8 +36,35 @@ export function formatOrderIntentLimited(record, nowMs = Date.now()) {
   return base;
 }
 
-export function formatOrderIntentForRole(record, role, nowMs = Date.now()) {
+/** Coordinator view: full intent plus donor email when known (never for limited dashboard). */
+export function formatOrderIntentCoordinator(
+  record,
+  donorEmailByUserId = {},
+  nowMs = Date.now()
+) {
+  const base = formatOrderIntentForApi(record);
+  const userId = typeof base.user_id === "string" ? base.user_id.trim() : "";
+  const donorEmail =
+    userId && typeof donorEmailByUserId[userId] === "string"
+      ? donorEmailByUserId[userId].trim()
+      : "";
+  return {
+    ...base,
+    donor_email: donorEmail || null
+  };
+}
+
+export function formatOrderIntentForRole(
+  record,
+  role,
+  options = {}
+) {
+  const { donorEmailByUserId = {}, nowMs = Date.now() } = options;
   return isCoordinatorApiRole(role)
-    ? formatOrderIntentForApi(record)
+    ? formatOrderIntentCoordinator(record, donorEmailByUserId, nowMs)
     : formatOrderIntentLimited(record, nowMs);
+}
+
+export async function formatOrderIntentsForRole(records, role, options = {}) {
+  return records.map((record) => formatOrderIntentForRole(record, role, options));
 }

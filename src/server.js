@@ -34,8 +34,9 @@ import {
   sortOrderIntentsNewestFirst,
   validateCreateOrderIntentRequest
 } from "./orderIntents.js";
+import { lookupDonorEmailsByUserId } from "./donorEmailLookup.js";
 import {
-  formatOrderIntentForRole,
+  formatOrderIntentsForRole,
   isCoordinatorApiRole
 } from "./orderIntentViews.js";
 import {
@@ -220,12 +221,21 @@ export function createIntegrationServer({
       const records = sortOrderIntentsNewestFirst(
         await orderIntentStore.listAll({ userIdFilter: filter })
       );
-      const mapIntent = (record) => formatOrderIntentForRole(record, auth.role);
+      let donorEmailByUserId = {};
+      if (isCoordinatorApiRole(auth.role) && orderIntentStore.pool) {
+        donorEmailByUserId = await lookupDonorEmailsByUserId(
+          orderIntentStore.pool,
+          records.map((record) => record.user_id)
+        );
+      }
+      const orderIntents = await formatOrderIntentsForRole(records, auth.role, {
+        donorEmailByUserId
+      });
       return sendJson(res, 200, {
         user_id: auth.userId,
         role: auth.role,
         dashboard: isCoordinatorApiRole(auth.role) ? "coordinator" : "limited",
-        order_intents: records.map(mapIntent)
+        order_intents: orderIntents
       });
     }
 
