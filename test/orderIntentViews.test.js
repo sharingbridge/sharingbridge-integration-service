@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getDonorNeighbourhoodWindowMs } from "../src/donorNeighbourhoodWindow.js";
 import {
-  REFERENCE_PHOTO_MAX_AGE_MS,
   formatOrderIntentCoordinator,
   formatOrderIntentForRole,
   formatOrderIntentLimited
@@ -25,15 +25,16 @@ function recordWithPhoto(ageMs) {
   };
 }
 
-test("formatOrderIntentLimited strips photo URLs when older than one hour", () => {
-  const old = recordWithPhoto(REFERENCE_PHOTO_MAX_AGE_MS + 1000);
+test("formatOrderIntentLimited strips photo URLs outside neighbourhood window", () => {
+  const windowMs = getDonorNeighbourhoodWindowMs();
+  const old = recordWithPhoto(windowMs + 1000);
   const formatted = formatOrderIntentLimited(old, now);
   assert.equal(formatted.has_reference_photo, false);
   assert.equal(formatted.reference_photo_view_url, "");
   assert.equal(formatted.reference_photo_thumbnail_url, "");
 });
 
-test("formatOrderIntentLimited keeps photo URLs within one hour", () => {
+test("formatOrderIntentLimited keeps photo URLs within neighbourhood window", () => {
   const recent = recordWithPhoto(30 * 60 * 1000);
   const formatted = formatOrderIntentLimited(recent, now);
   assert.equal(formatted.reference_photo_view_url, "https://cdn/view");
@@ -41,7 +42,7 @@ test("formatOrderIntentLimited keeps photo URLs within one hour", () => {
 });
 
 test("formatOrderIntentForRole uses full view for coordinator", () => {
-  const old = recordWithPhoto(REFERENCE_PHOTO_MAX_AGE_MS + 1000);
+  const old = recordWithPhoto(getDonorNeighbourhoodWindowMs() + 1000);
   const formatted = formatOrderIntentForRole(old, "coordinator", { nowMs: now });
   assert.equal(formatted.reference_photo_view_url, "https://cdn/view");
 });

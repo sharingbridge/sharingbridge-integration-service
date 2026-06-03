@@ -207,7 +207,135 @@ test("coordinator lists order intents across donors", async (t) => {
   const donorBody = JSON.parse(await donorList.text());
   assert.equal(donorBody.role, "donor");
   assert.equal(donorBody.dashboard, "limited");
-  assert.equal(donorBody.order_intents.length, 2);
-  const packIds = donorBody.order_intents.map((i) => i.pack_id).sort();
+  assert.equal(donorBody.since, "2h");
+  assert.equal(donorBody.feed?.window_hours, 2);
+  assert.equal(donorBody.feed?.location_mode, "own_only");
+  assert.equal(donorBody.order_intents.length, 1);
+  assert.equal(donorBody.order_intents[0].pack_id, "pack-alice");
+});
+
+test("donor list with near_lat near_lng includes neighbours within radius", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-order-near-"));
+  t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
+
+  const store = new PreferencesStore(path.join(tempDir, "preferences.json"));
+  const repo = new LocalPreferencesRepository(store);
+  await repo.init();
+  const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
+  await orderIntentStore.init();
+
+  const server = createIntegrationServer({
+    preferencesRepository: repo,
+    orderIntentStore
+  });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const port = server.address().port;
+  t.after(() => server.close());
+
+  const nearLat = 12.97;
+  const nearLng = 80.22;
+
+  async function register(userId, packId, lat, lng) {
+    const token = mintAuthToken(userId, { role: "donor" });
+    await fetch(`http://127.0.0.1:${port}/v1/donor-seeker/order-intents`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        pack_id: packId,
+        status: "instructions_copied",
+        has_reference_photo: false,
+        presets_snapshot: [],
+        location_lat: lat,
+        location_lng: lng,
+        location_label: "Test area"
+      })
+    });
+    return token;
+  }
+
+  const aliceToken = await register("alice", "pack-alice", nearLat, nearLng);
+  await register("bob", "pack-bob", nearLat + 0.01, nearLng + 0.01);
+  await register("carol", "pack-carol", 50, 50);
+
+  const listRes = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents?near_lat=${nearLat}&near_lng=${nearLng}`,
+    { headers: { authorization: `Bearer ${aliceToken}` } }
+  );
+  const body = JSON.parse(await listRes.text());
+  assert.equal(listRes.status, 200);
+  const packIds = body.order_intents.map((i) => i.pack_id).sort();
   assert.deepEqual(packIds, ["pack-alice", "pack-bob"]);
+  assert.equal(body.neighbourhood?.mode, "near");
+  assert.equal(body.feed?.location_mode, "near");
+  assert.equal(body.feed?.radius_km, 5);
+});
+
+test("donor list applies since=2h and drops older intents", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-order-since-"));
+  t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
+
+  const store = new PreferencesStore(path.join(tempDir, "preferences.json"));
+  const repo = new LocalPreferencesRepository(store);
+  await repo.init();
+  const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
+  await orderIntentStore.init();
+
+  const server = createIntegrationServer({
+    preferencesRepository: repo,
+    orderIntentStore
+  });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const port = server.address().port;
+  t.after(() => server.close());
+
+  const oldIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  orderIntentStore.byUser.alice = [
+    {
+      id: "old-intent",
+      user_id: "alice",
+      pack_id: "pack-old",
+      status: "instructions_copied",
+      has_reference_photo: false,
+      presets_snapshot: [],
+      created_at: oldIso,
+      updated_at: oldIso
+    }
+  ];
+  await orderIntentStore.persist();
+
+  const aliceToken = mintAuthToken("alice", { role: "donor" });
+  await fetch(`http://127.0.0.1:${port}/v1/donor-seeker/order-intents`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${aliceToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      pack_id: "pack-new",
+      status: "instructions_copied",
+      has_reference_photo: false,
+      presets_snapshot: []
+    })
+  });
+
+  const donorList = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents`,
+    { headers: { authorization: `Bearer ${aliceToken}` } }
+  );
+  const donorBody = JSON.parse(await donorList.text());
+  assert.equal(donorBody.since, "2h");
+  assert.equal(donorBody.order_intents.length, 1);
+  assert.equal(donorBody.order_intents[0].pack_id, "pack-new");
+
+  const coordToken = mintAuthToken("coord-1", { role: "coordinator" });
+  const coordList = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents`,
+    { headers: { authorization: `Bearer ${coordToken}` } }
+  );
+  const coordBody = JSON.parse(await coordList.text());
+  assert.equal(coordBody.since, undefined);
+  assert.equal(coordBody.order_intents.length, 2);
 });

@@ -15,7 +15,15 @@ function recordToPayload(record) {
     selected_preset:
       record.selected_preset && typeof record.selected_preset === "object"
         ? record.selected_preset
-        : null
+        : null,
+    location_lat:
+      typeof record.location_lat === "number" ? record.location_lat : null,
+    location_lng:
+      typeof record.location_lng === "number" ? record.location_lng : null,
+    location_label:
+      typeof record.location_label === "string" ? record.location_label : "",
+    locality_key:
+      typeof record.locality_key === "string" ? record.locality_key : ""
   };
 }
 
@@ -39,6 +47,14 @@ function rowToRecord(row) {
       payload.selected_preset && typeof payload.selected_preset === "object"
         ? payload.selected_preset
         : null,
+    location_lat:
+      typeof payload.location_lat === "number" ? payload.location_lat : null,
+    location_lng:
+      typeof payload.location_lng === "number" ? payload.location_lng : null,
+    location_label:
+      typeof payload.location_label === "string" ? payload.location_label : "",
+    locality_key:
+      typeof payload.locality_key === "string" ? payload.locality_key : "",
     created_at: createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
     updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt)
   };

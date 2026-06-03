@@ -64,6 +64,10 @@ export function buildOrderIntentRecord(payload, { userId }) {
       payload.selected_preset && typeof payload.selected_preset === "object"
         ? payload.selected_preset
         : null,
+    location_lat: null,
+    location_lng: null,
+    location_label: "",
+    locality_key: "",
     created_at: now,
     updated_at: now
   };
@@ -87,6 +91,14 @@ export function formatOrderIntentForApi(record) {
       record.selected_preset && typeof record.selected_preset === "object"
         ? record.selected_preset
         : null,
+    location_lat:
+      typeof record.location_lat === "number" ? record.location_lat : null,
+    location_lng:
+      typeof record.location_lng === "number" ? record.location_lng : null,
+    location_label:
+      typeof record.location_label === "string" ? record.location_label : "",
+    locality_key:
+      typeof record.locality_key === "string" ? record.locality_key : "",
     created_at: record.created_at,
     updated_at: record.updated_at
   };
@@ -138,6 +150,10 @@ export function mergeOrderIntentRecord(existing, payload) {
       payload.selected_preset && typeof payload.selected_preset === "object"
         ? payload.selected_preset
         : existing.selected_preset,
+    location_lat: existing.location_lat ?? null,
+    location_lng: existing.location_lng ?? null,
+    location_label: existing.location_label ?? "",
+    locality_key: existing.locality_key ?? "",
     updated_at: now
   };
 }

@@ -34,5 +34,11 @@ services:
         value: "true"
       - key: AI_INSTRUCTION_PACK_ENABLED
         value: "true"
+      - key: DONOR_NEIGHBOURHOOD_WINDOW_HOURS
+        value: "2"
+      - key: DONOR_NEIGHBOURHOOD_RADIUS_KM
+        value: "5"
+      - key: DONOR_LOCALITY_GRID_DECIMALS
+        value: "2"
       - key: WEB_CORS_ORIGINS
         sync: false

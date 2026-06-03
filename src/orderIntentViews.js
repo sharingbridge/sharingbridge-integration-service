@@ -1,7 +1,5 @@
 import { formatOrderIntentForApi } from "./orderIntents.js";
-
-/** Reference photos visible to non-coordinator dashboard viewers only within this window. */
-export const REFERENCE_PHOTO_MAX_AGE_MS = 60 * 60 * 1000;
+import { getDonorNeighbourhoodWindowMs } from "./donorNeighbourhoodWindow.js";
 
 export function isCoordinatorApiRole(role) {
   return role === "coordinator";
@@ -18,22 +16,27 @@ export function referencePhotoWithinViewerWindow(record, nowMs = Date.now()) {
     return false;
   }
   const age = nowMs - intentTimestampMs(record);
-  return age >= 0 && age <= REFERENCE_PHOTO_MAX_AGE_MS;
+  return age >= 0 && age <= getDonorNeighbourhoodWindowMs();
 }
 
-/** Limited dashboard: neighbourhood list without reference photo URLs older than 1 hour. */
+/** Limited dashboard: no exact coordinates; photos redacted outside the window. */
 export function formatOrderIntentLimited(record, nowMs = Date.now()) {
   const base = formatOrderIntentForApi(record);
+  const localized = {
+    ...base,
+    location_lat: null,
+    location_lng: null
+  };
   if (!referencePhotoWithinViewerWindow(record, nowMs)) {
     return {
-      ...base,
+      ...localized,
       has_reference_photo: false,
       reference_photo_artifact_id: "",
       reference_photo_view_url: "",
       reference_photo_thumbnail_url: ""
     };
   }
-  return base;
+  return localized;
 }
 
 /** Coordinator view: full intent plus donor email when known (never for limited dashboard). */

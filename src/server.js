@@ -41,6 +41,23 @@ import {
   isCoordinatorApiRole
 } from "./orderIntentViews.js";
 import {
+  filterRecordsSince,
+  formatSinceQuery,
+  resolveListSinceMs
+} from "./sinceFilter.js";
+import { getDonorNeighbourhoodRadiusKm } from "./donorNeighbourhoodArea.js";
+import { getDonorNeighbourhoodWindowHours } from "./donorNeighbourhoodWindow.js";
+import {
+  filterRecordsByNeighbourhood,
+  formatNeighbourhoodResponse,
+  resolveNeighbourhoodScope
+} from "./neighbourhoodFilter.js";
+import {
+  applyLocationToRecord,
+  locationFromPayload,
+  mergeLocationFromPayload
+} from "./orderIntentLocation.js";
+import {
   applyCorsHeaders,
   handleCorsPreflight,
   parseCorsOrigins
@@ -233,8 +250,25 @@ export function createIntegrationServer({
         typeof queryUserId === "string" && queryUserId.trim()
           ? queryUserId.trim()
           : null;
-      const records = sortOrderIntentsNewestFirst(
+      const sinceMs = resolveListSinceMs(
+        auth.role,
+        requestUrl.searchParams.get("since")
+      );
+      let records = sortOrderIntentsNewestFirst(
         await orderIntentStore.listAll({ userIdFilter: filter })
+      );
+      if (sinceMs != null) {
+        records = filterRecordsSince(records, sinceMs);
+      }
+      const neighbourhoodScope = resolveNeighbourhoodScope(
+        auth.role,
+        requestUrl.searchParams
+      );
+      records = filterRecordsByNeighbourhood(
+        records,
+        neighbourhoodScope,
+        auth.userId,
+        auth.role
       );
       let donorEmailByUserId = {};
       if (isCoordinatorApiRole(auth.role)) {
@@ -250,12 +284,30 @@ export function createIntegrationServer({
       const orderIntents = await formatOrderIntentsForRole(records, auth.role, {
         donorEmailByUserId
       });
-      return sendJson(res, 200, {
+      const payload = {
         user_id: auth.userId,
         role: auth.role,
         dashboard: isCoordinatorApiRole(auth.role) ? "coordinator" : "limited",
         order_intents: orderIntents
-      });
+      };
+      if (sinceMs != null) {
+        payload.since = formatSinceQuery(sinceMs);
+      }
+      const neighbourhood = formatNeighbourhoodResponse(neighbourhoodScope);
+      if (neighbourhood) {
+        payload.neighbourhood = neighbourhood;
+      } else if (!isCoordinatorApiRole(auth.role)) {
+        payload.neighbourhood = { mode: "own_only" };
+      }
+      if (!isCoordinatorApiRole(auth.role) && sinceMs != null) {
+        payload.feed = {
+          since: payload.since,
+          window_hours: getDonorNeighbourhoodWindowHours(),
+          radius_km: getDonorNeighbourhoodRadiusKm(),
+          location_mode: neighbourhoodScope?.type ?? "own_only"
+        };
+      }
+      return sendJson(res, 200, payload);
     }
 
     if (
@@ -322,10 +374,17 @@ export function createIntegrationServer({
         let record;
         let created;
         if (existing) {
-          record = mergeOrderIntentRecord(existing, payload);
+          record = mergeLocationFromPayload(
+            mergeOrderIntentRecord(existing, payload),
+            payload
+          );
           ({ created } = await orderIntentStore.upsertForUser(userId, record));
         } else {
           record = buildOrderIntentRecord(payload, { userId });
+          const location = locationFromPayload(payload);
+          if (location) {
+            record = applyLocationToRecord(record, location);
+          }
           ({ created } = await orderIntentStore.upsertForUser(userId, record));
         }
         return sendJson(res, created ? 201 : 200, {
