@@ -197,6 +197,7 @@ test("coordinator lists order intents across donors", async (t) => {
   const listBody = JSON.parse(await listRes.text());
   assert.equal(listRes.status, 200);
   assert.equal(listBody.role, "coordinator");
+  assert.equal(listBody.dashboard, "coordinator");
   assert.equal(listBody.order_intents.length, 2);
 
   const donorList = await fetch(
@@ -204,6 +205,9 @@ test("coordinator lists order intents across donors", async (t) => {
     { headers: { authorization: `Bearer ${aliceToken}` } }
   );
   const donorBody = JSON.parse(await donorList.text());
-  assert.equal(donorBody.order_intents.length, 1);
-  assert.equal(donorBody.order_intents[0].pack_id, "pack-alice");
+  assert.equal(donorBody.role, "donor");
+  assert.equal(donorBody.dashboard, "limited");
+  assert.equal(donorBody.order_intents.length, 2);
+  const packIds = donorBody.order_intents.map((i) => i.pack_id).sort();
+  assert.deepEqual(packIds, ["pack-alice", "pack-bob"]);
 });

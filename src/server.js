@@ -35,6 +35,10 @@ import {
   validateCreateOrderIntentRequest
 } from "./orderIntents.js";
 import {
+  formatOrderIntentForRole,
+  isCoordinatorApiRole
+} from "./orderIntentViews.js";
+import {
   applyCorsHeaders,
   handleCorsPreflight,
   parseCorsOrigins
@@ -209,34 +213,19 @@ export function createIntegrationServer({
           message: "A valid Bearer token is required."
         });
       }
-      if (auth.role === "coordinator") {
-        const filter =
-          typeof queryUserId === "string" && queryUserId.trim()
-            ? queryUserId.trim()
-            : null;
-        const records = sortOrderIntentsNewestFirst(
-          await orderIntentStore.listAll({ userIdFilter: filter })
-        );
-        return sendJson(res, 200, {
-          user_id: auth.userId,
-          role: auth.role,
-          order_intents: records.map(formatOrderIntentForApi)
-        });
-      }
-      const { userId, error: authError } = resolveAuthenticatedUserId({
-        headerUserId: auth.userId,
-        supplied: queryUserId
-      });
-      if (authError) {
-        return sendJson(res, authError.status, authError.body);
-      }
+      const filter =
+        typeof queryUserId === "string" && queryUserId.trim()
+          ? queryUserId.trim()
+          : null;
       const records = sortOrderIntentsNewestFirst(
-        await orderIntentStore.listForUser(userId)
+        await orderIntentStore.listAll({ userIdFilter: filter })
       );
+      const mapIntent = (record) => formatOrderIntentForRole(record, auth.role);
       return sendJson(res, 200, {
-        user_id: userId,
+        user_id: auth.userId,
         role: auth.role,
-        order_intents: records.map(formatOrderIntentForApi)
+        dashboard: isCoordinatorApiRole(auth.role) ? "coordinator" : "limited",
+        order_intents: records.map(mapIntent)
       });
     }
 

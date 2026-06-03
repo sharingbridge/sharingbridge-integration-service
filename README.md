@@ -62,7 +62,7 @@ behavior; see `test/preferencesRoundtrip.test.js`.
 ### Auth context
 
 Preferences and suggest flows use **signed JWT bearer tokens** (HS256) minted by
-`sharingbridge-user-service` (`POST /v1/auth/token`). See `src/authContext.js` and
+`sharingbridge-user-service` (Google Sign-In or locally signed JWT). See `src/authContext.js` and
 `sharingbridge/design/contracts/donor_setup_preferences.openapi.yaml` for the contract.
 
 ### AI orchestration bridge (`sharingbridge-ai-orchestration`)

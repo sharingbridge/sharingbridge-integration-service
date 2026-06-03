@@ -4,7 +4,7 @@
  *
  * Prerequisites:
  *   - user-service reachable (mint + PUT)
- *   - Same AUTH_TOKEN_SECRET on user-service used for minting (script mints via /v1/auth/token)
+ *   - Same AUTH_TOKEN_SECRET as user-service (script signs JWTs locally)
  *
  * Environment:
  *   USER_SERVICE_BASE_URL   default http://127.0.0.1:8081
@@ -14,6 +14,7 @@
  */
 
 import { readFile } from "node:fs/promises";
+import { mintAuthToken } from "../src/tokenService.js";
 
 function readEnvBool(name) {
   const v = process.env[name];
@@ -64,21 +65,8 @@ export function normalizePresetForUserService(preset) {
   };
 }
 
-async function mintToken(baseUrl, userId) {
-  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/auth/token`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ user_id: userId })
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Mint token failed for ${userId}: HTTP ${res.status} ${text}`);
-  }
-  const body = await res.json();
-  if (!body?.token || typeof body.token !== "string") {
-    throw new Error(`Mint token invalid response for ${userId}`);
-  }
-  return body.token;
+function mintToken(_baseUrl, userId) {
+  return mintAuthToken(userId, { role: "donor" });
 }
 
 async function putPresets(baseUrl, userId, presets, bearerToken, dryRun) {
