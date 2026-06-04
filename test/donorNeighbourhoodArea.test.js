@@ -5,9 +5,13 @@ import {
   parseDonorNeighbourhoodRadiusM
 } from "../src/donorNeighbourhoodArea.js";
 
-test("parseDonorNeighbourhoodRadiusM defaults and clamps", () => {
+test("parseDonorNeighbourhoodRadiusM defaults and caps at max only", () => {
   assert.equal(parseDonorNeighbourhoodRadiusM(undefined), 5000);
-  assert.equal(parseDonorNeighbourhoodRadiusM(100), 500);
+  assert.equal(parseDonorNeighbourhoodRadiusM(""), 5000);
+  assert.equal(parseDonorNeighbourhoodRadiusM(200), 200);
+  assert.equal(parseDonorNeighbourhoodRadiusM(30), 30);
+  assert.equal(parseDonorNeighbourhoodRadiusM(0), 5000);
+  assert.equal(parseDonorNeighbourhoodRadiusM(-10), 5000);
   assert.equal(parseDonorNeighbourhoodRadiusM(99_999), 50_000);
 });
 

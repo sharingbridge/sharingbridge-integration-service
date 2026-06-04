@@ -1,5 +1,5 @@
 const DEFAULT_RADIUS_M = 5000;
-const MIN_RADIUS_M = 500;
+/** Upper bound only — prevents oversized ST_DWithin scans; no high minimum floor. */
 const MAX_RADIUS_M = 50_000;
 const DEFAULT_GRID_DECIMALS = 2;
 const MIN_GRID_DECIMALS = 1;
@@ -10,11 +10,14 @@ const MAX_GRID_DECIMALS = 4;
  * @returns {number} metres
  */
 export function parseDonorNeighbourhoodRadiusM(raw) {
-  const parsed = Number(String(raw ?? DEFAULT_RADIUS_M).trim());
-  if (!Number.isFinite(parsed)) {
+  if (raw == null || raw === "") {
     return DEFAULT_RADIUS_M;
   }
-  return Math.min(MAX_RADIUS_M, Math.max(MIN_RADIUS_M, Math.round(parsed)));
+  const parsed = Number(String(raw).trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_RADIUS_M;
+  }
+  return Math.min(MAX_RADIUS_M, Math.round(parsed));
 }
 
 /** From `DONOR_NEIGHBOURHOOD_RADIUS_M` (default 5000 metres). */
