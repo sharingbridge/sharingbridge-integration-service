@@ -1,11 +1,28 @@
-const DEFAULT_RADIUS_KM = 5;
-const MIN_RADIUS_KM = 0.5;
-const MAX_RADIUS_KM = 50;
+const DEFAULT_RADIUS_M = 5000;
+const MIN_RADIUS_M = 500;
+const MAX_RADIUS_M = 50_000;
 const DEFAULT_GRID_DECIMALS = 2;
 const MIN_GRID_DECIMALS = 1;
 const MAX_GRID_DECIMALS = 4;
 
+const DEFAULT_RADIUS_KM = 5;
+const MIN_RADIUS_KM = 0.5;
+const MAX_RADIUS_KM = 50;
+
 /**
+ * @param {string | number | undefined} raw
+ * @returns {number} metres
+ */
+export function parseDonorNeighbourhoodRadiusM(raw) {
+  const parsed = Number(String(raw ?? DEFAULT_RADIUS_M).trim());
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_RADIUS_M;
+  }
+  return Math.min(MAX_RADIUS_M, Math.max(MIN_RADIUS_M, Math.round(parsed)));
+}
+
+/**
+ * Legacy km parser (used only when `DONOR_NEIGHBOURHOOD_RADIUS_M` is unset).
  * @param {string | number | undefined} raw
  * @returns {number} kilometres
  */
@@ -17,15 +34,22 @@ export function parseDonorNeighbourhoodRadiusKm(raw) {
   return Math.min(MAX_RADIUS_KM, Math.max(MIN_RADIUS_KM, parsed));
 }
 
-/** From `DONOR_NEIGHBOURHOOD_RADIUS_KM` (default 5). */
-export function getDonorNeighbourhoodRadiusKm() {
-  return parseDonorNeighbourhoodRadiusKm(
-    process.env.DONOR_NEIGHBOURHOOD_RADIUS_KM
-  );
+/** From `DONOR_NEIGHBOURHOOD_RADIUS_M` (default 5000), or legacy `DONOR_NEIGHBOURHOOD_RADIUS_KM` × 1000. */
+export function getDonorNeighbourhoodRadiusM() {
+  const metresRaw = process.env.DONOR_NEIGHBOURHOOD_RADIUS_M;
+  if (metresRaw != null && String(metresRaw).trim() !== "") {
+    return parseDonorNeighbourhoodRadiusM(metresRaw);
+  }
+  const kmRaw = process.env.DONOR_NEIGHBOURHOOD_RADIUS_KM;
+  if (kmRaw != null && String(kmRaw).trim() !== "") {
+    return Math.round(parseDonorNeighbourhoodRadiusKm(kmRaw) * 1000);
+  }
+  return DEFAULT_RADIUS_M;
 }
 
-export function getDonorNeighbourhoodRadiusM() {
-  return getDonorNeighbourhoodRadiusKm() * 1000;
+/** Kilometres derived from the active radius in metres (UI copy only). */
+export function getDonorNeighbourhoodRadiusKm() {
+  return getDonorNeighbourhoodRadiusM() / 1000;
 }
 
 export function parseDonorLocalityGridDecimals(raw) {
@@ -88,7 +112,7 @@ export function parseNeighbourhoodQuery(params) {
   if (radiusRaw != null && radiusRaw !== "") {
     const parsed = Number(String(radiusRaw).trim());
     if (Number.isFinite(parsed) && parsed > 0) {
-      radiusM = Math.min(parsed, getDonorNeighbourhoodRadiusM());
+      radiusM = Math.min(Math.round(parsed), getDonorNeighbourhoodRadiusM());
     }
   }
   return {

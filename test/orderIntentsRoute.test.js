@@ -270,7 +270,7 @@ test("donor list with near_lat near_lng includes neighbours within radius", asyn
   assert.deepEqual(packIds, ["pack-alice", "pack-bob"]);
   assert.equal(body.neighbourhood?.mode, "near");
   assert.equal(body.feed?.location_mode, "near");
-  assert.equal(body.feed?.radius_km, 5);
+  assert.equal(body.feed?.radius_m, 5000);
   const alice = body.order_intents.find((i) => i.pack_id === "pack-alice");
   const bob = body.order_intents.find((i) => i.pack_id === "pack-bob");
   assert.equal(typeof alice.distance_m, "number");

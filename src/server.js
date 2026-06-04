@@ -39,7 +39,7 @@ import {
 import { listOrderIntentsForDashboard } from "./orderIntentList.js";
 import { getOrderIntentListMaxRows } from "./orderIntentListMaxRows.js";
 import { formatSinceQuery, resolveListSinceMs } from "./sinceFilter.js";
-import { getDonorNeighbourhoodRadiusKm } from "./donorNeighbourhoodArea.js";
+import { getDonorNeighbourhoodRadiusM } from "./donorNeighbourhoodArea.js";
 import { getDonorNeighbourhoodWindowHours } from "./donorNeighbourhoodWindow.js";
 import {
   formatNeighbourhoodResponse,
@@ -276,7 +276,7 @@ export function createIntegrationServer({
         payload.feed = {
           since: payload.since,
           window_hours: getDonorNeighbourhoodWindowHours(),
-          radius_km: getDonorNeighbourhoodRadiusKm(),
+          radius_m: getDonorNeighbourhoodRadiusM(),
           location_mode: neighbourhoodScope?.type ?? "own_only"
         };
       }

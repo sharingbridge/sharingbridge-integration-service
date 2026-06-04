@@ -2,7 +2,6 @@ import { isCoordinatorApiRole } from "./orderIntentViews.js";
 import {
   deriveLocalityKey,
   getDonorLocalityGridDecimals,
-  getDonorNeighbourhoodRadiusKm,
   parseNeighbourhoodQuery
 } from "./donorNeighbourhoodArea.js";
 import { recordHasLocation } from "./orderIntentLocation.js";
@@ -103,7 +102,6 @@ export function formatNeighbourhoodResponse(scope) {
     mode: "near",
     near_lat: scope.nearLat,
     near_lng: scope.nearLng,
-    radius_km: getDonorNeighbourhoodRadiusKm(),
     radius_m: scope.radiusM,
     viewer_locality_key: deriveLocalityKey(
       scope.nearLat,
