@@ -100,7 +100,15 @@ export function formatOrderIntentForApi(record) {
     locality_key:
       typeof record.locality_key === "string" ? record.locality_key : "",
     created_at: record.created_at,
-    updated_at: record.updated_at
+    updated_at: record.updated_at,
+    delivered_at:
+      typeof record.delivered_at === "string" && record.delivered_at.trim()
+        ? record.delivered_at.trim()
+        : null,
+    distance_m:
+      typeof record.distance_m === "number" && Number.isFinite(record.distance_m)
+        ? Math.round(record.distance_m)
+        : null
   };
 }
 

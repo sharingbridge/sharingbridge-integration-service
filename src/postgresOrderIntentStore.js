@@ -69,8 +69,29 @@ function rowToRecord(row) {
       typeof payload.location_label === "string" ? payload.location_label : "",
     locality_key: payloadKey || columnKey,
     created_at: createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
-    updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt)
+    updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt),
+    delivered_at: formatDeliveredAt(row.delivered_at),
+    distance_m: parseDistanceM(row.distance_m)
   };
+}
+
+function formatDeliveredAt(value) {
+  if (value == null) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  const trimmed = String(value).trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseDistanceM(value) {
+  if (value == null) {
+    return null;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n) : null;
 }
 
 function locationSqlFragment(lngParam, latParam) {

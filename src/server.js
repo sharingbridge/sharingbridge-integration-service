@@ -37,6 +37,7 @@ import {
   isCoordinatorApiRole
 } from "./orderIntentViews.js";
 import { listOrderIntentsForDashboard } from "./orderIntentList.js";
+import { getOrderIntentListMaxRows } from "./orderIntentListMaxRows.js";
 import { formatSinceQuery, resolveListSinceMs } from "./sinceFilter.js";
 import { getDonorNeighbourhoodRadiusKm } from "./donorNeighbourhoodArea.js";
 import { getDonorNeighbourhoodWindowHours } from "./donorNeighbourhoodWindow.js";
@@ -239,7 +240,8 @@ export function createIntegrationServer({
         sinceMs,
         neighbourhoodScope,
         viewerUserId: auth.userId,
-        role: auth.role
+        role: auth.role,
+        maxRows: getOrderIntentListMaxRows()
       });
       let donorEmailByUserId = {};
       if (isCoordinatorApiRole(auth.role) && orderIntentStore.pool) {

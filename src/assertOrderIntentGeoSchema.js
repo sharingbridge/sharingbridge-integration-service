@@ -1,5 +1,5 @@
 const SCHEMA_HINT =
-  "Run sharingbridge/configuration/schema.sql (new DB) or schema-postgis-migration.sql (existing DB), then restart integration-service.";
+  "Run sharingbridge/configuration/schema.sql (new DB), schema-postgis-migration.sql (geo), and schema-delivered-at-migration.sql (delivered_at), then restart integration-service.";
 
 /**
  * Fail fast at startup if PostGIS geo columns are missing.
@@ -17,6 +17,20 @@ export async function assertOrderIntentGeoSchema(pool) {
   if (columnCheck.rowCount === 0) {
     throw new Error(
       `order_intents.location column is required. ${SCHEMA_HINT}`
+    );
+  }
+
+  const deliveredCheck = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'order_intents'
+       AND column_name = 'delivered_at'
+     LIMIT 1`
+  );
+  if (deliveredCheck.rowCount === 0) {
+    throw new Error(
+      `order_intents.delivered_at column is required. ${SCHEMA_HINT}`
     );
   }
 

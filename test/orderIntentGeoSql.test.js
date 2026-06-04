@@ -38,10 +38,13 @@ test("buildOrderIntentListSql coordinator without scope has no user_id lock", ()
   const { text, values } = buildOrderIntentListSql({
     neighbourhoodScope: null,
     viewerUserId: "coord-1",
-    role: "coordinator"
+    role: "coordinator",
+    maxRows: 25
   });
   assert.doesNotMatch(text, /user_id = \$1/);
-  assert.equal(values.length, 0);
+  assert.match(text, /LIMIT \$/);
+  assert.equal(values.length, 1);
+  assert.equal(values[0], 25);
 });
 
 test("buildOrderIntentListSql coordinator near uses ST_DWithin", () => {
@@ -56,4 +59,32 @@ test("buildOrderIntentListSql coordinator near uses ST_DWithin", () => {
     role: "coordinator"
   });
   assert.match(text, /ST_DWithin/);
+});
+
+test("buildOrderIntentListSql near scope returns distance_m and sorts ascending", () => {
+  const { text, values } = buildOrderIntentListSql({
+    neighbourhoodScope: {
+      type: "near",
+      nearLat: 12.97,
+      nearLng: 80.22,
+      radiusM: 5000
+    },
+    viewerUserId: "alice",
+    role: "donor",
+    maxRows: 50
+  });
+  assert.match(text, /ST_Distance/);
+  assert.match(text, /distance_m/);
+  assert.match(text, /ORDER BY distance_m ASC NULLS LAST/);
+  assert.match(text, /LIMIT \$/);
+  assert.equal(values.at(-1), 50);
+});
+
+test("buildOrderIntentListSql includes delivered_at column", () => {
+  const { text } = buildOrderIntentListSql({
+    neighbourhoodScope: null,
+    viewerUserId: "alice",
+    role: "donor"
+  });
+  assert.match(text, /delivered_at/);
 });

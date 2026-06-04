@@ -266,11 +266,18 @@ test("donor list with near_lat near_lng includes neighbours within radius", asyn
   );
   const body = JSON.parse(await listRes.text());
   assert.equal(listRes.status, 200);
-  const packIds = body.order_intents.map((i) => i.pack_id).sort();
+  const packIds = body.order_intents.map((i) => i.pack_id);
   assert.deepEqual(packIds, ["pack-alice", "pack-bob"]);
   assert.equal(body.neighbourhood?.mode, "near");
   assert.equal(body.feed?.location_mode, "near");
   assert.equal(body.feed?.radius_km, 5);
+  const alice = body.order_intents.find((i) => i.pack_id === "pack-alice");
+  const bob = body.order_intents.find((i) => i.pack_id === "pack-bob");
+  assert.equal(typeof alice.distance_m, "number");
+  assert.equal(typeof bob.distance_m, "number");
+  assert.ok(alice.distance_m <= bob.distance_m);
+  assert.ok(alice.created_at);
+  assert.equal(alice.delivered_at, null);
 });
 
 test("donor list applies since=2h and drops older intents", async (t) => {
