@@ -77,16 +77,14 @@ export function buildOrderIntentListSql(opts) {
     nearLatParam = add(neighbourhoodScope.nearLat);
     const radiusParam = add(neighbourhoodScope.radiusM);
     const viewerClause = viewer ? `user_id = ${add(viewer)}` : "FALSE";
+    const viewerPoint = `ST_SetSRID(ST_MakePoint(${nearLngParam}, ${nearLatParam}), 4326)::geography`;
     where.push(`(
       ${viewerClause}
       OR (
         location IS NOT NULL
-        AND ST_DWithin(
-          location,
-          ST_SetSRID(ST_MakePoint(${nearLngParam}, ${nearLatParam}), 4326)::geography,
-          ${radiusParam}
-        )
+        AND ST_DWithin(location, ${viewerPoint}, ${radiusParam})
       )
+      OR location IS NULL
     )`);
   } else if (neighbourhoodScope.type === "locality") {
     const keyParam = add(neighbourhoodScope.localityKey);

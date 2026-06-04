@@ -84,6 +84,10 @@ export function filterRecordsByNeighbourhood(
     if (viewer && record.user_id === viewer) {
       return true;
     }
+    if (!recordHasLocation(record)) {
+      // No handover GPS at registration — still visible in the time window for By area.
+      return scope.type === "near";
+    }
     return intentMatchesNeighbourhood(record, scope);
   });
 }

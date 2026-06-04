@@ -28,6 +28,7 @@ test("buildOrderIntentListSql donor near uses ST_DWithin and viewer OR", () => {
     role: "donor"
   });
   assert.match(text, /ST_DWithin/);
+  assert.match(text, /OR location IS NULL/);
   assert.match(text, /user_id = \$/);
   assert.equal(values.includes(12.97), true);
   assert.equal(values.includes(80.22), true);

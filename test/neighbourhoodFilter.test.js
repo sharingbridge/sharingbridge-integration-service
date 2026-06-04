@@ -36,6 +36,20 @@ test("intentMatchesNeighbourhood uses radius", () => {
   );
 });
 
+test("filterRecordsByNeighbourhood near scope includes other donors without GPS", () => {
+  const records = [
+    { user_id: "alice", pack_id: "a" },
+    { user_id: "bob", pack_id: "b" }
+  ];
+  const filtered = filterRecordsByNeighbourhood(
+    records,
+    { type: "near", nearLat: 12.97, nearLng: 80.22, radiusM: 5000 },
+    "alice",
+    "donor"
+  );
+  assert.equal(filtered.length, 2);
+});
+
 test("filterRecordsByNeighbourhood keeps viewer own rows without geo on intent", () => {
   const records = [
     { user_id: "alice", pack_id: "a" },
