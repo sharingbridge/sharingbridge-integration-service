@@ -83,6 +83,18 @@ export async function resolveInstructionPackResponse(
           log,
           `[instruction-pack] orchestration returned non-live source=${source} (check AI_LLM_MODE=live and API keys on ai-orchestration)`
         );
+      } else if (
+        Boolean(payload.has_reference_photo) &&
+        source === "groq" &&
+        !upstream.image_description &&
+        !upstream.seeker_appearance_hints
+      ) {
+        logWarn(
+          log,
+          "[instruction-pack] reference photo present but vision fields empty "
+            + "(check GEMINI_API_KEY on ai-orchestration and Render logs for "
+            + "[instruction-pack-live] gemini vision)"
+        );
       }
       return {
         pack_id: upstream.pack_id,
