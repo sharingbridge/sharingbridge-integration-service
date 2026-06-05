@@ -110,9 +110,13 @@ export async function resolveInstructionPackResponse(
       const detail = error?.message || String(error);
       const status = error?.status ? ` status=${error.status}` : "";
       const code = error?.code ? ` code=${error.code}` : "";
+      const timeoutHint =
+        error?.code === "timeout"
+          ? " (instruction-pack uses Nominatim + Gemini vision + Groq; increase AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS)"
+          : "";
       logWarn(
         log,
-        `[instruction-pack] orchestration failed${status}${code}: ${detail}; using fallback_error`
+        `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}; using fallback_error`
       );
       const { buildInstructionPackFallback } = await import(
         "./instructionPackFallback.js"

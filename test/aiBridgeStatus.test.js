@@ -27,6 +27,17 @@ test("buildAiBridgeStatus reports active path when env is wired", () => {
   assert.equal(status.suggest_vendors_path_active, true);
   assert.equal(status.internal_api_key_set, true);
   assert.equal(status.orchestration_timeout_ms, 12000);
+  assert.equal(status.instruction_pack_timeout_ms, 12000);
+});
+
+test("buildAiBridgeStatus reports instruction-pack timeout override", () => {
+  const status = buildAiBridgeStatus({
+    AI_ORCHESTRATION_BASE_URL: "https://ai.example.com",
+    AI_ORCHESTRATION_TIMEOUT_MS: "15000",
+    AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS: "60000"
+  });
+  assert.equal(status.orchestration_timeout_ms, 15000);
+  assert.equal(status.instruction_pack_timeout_ms, 60000);
 });
 
 test("resolveSuggestVendorsResponse logs mock reason when orchestration URL unset", async () => {

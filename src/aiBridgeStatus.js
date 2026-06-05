@@ -33,7 +33,12 @@ export function buildAiBridgeStatus(env = process.env) {
     suggest_vendors_path_active: baseUrlSet && suggestFlag,
     instruction_pack_path_active: baseUrlSet && instructionFlag,
     internal_api_key_set: Boolean(env.AI_ORCHESTRATION_INTERNAL_API_KEY?.trim()),
-    orchestration_timeout_ms: Number(env.AI_ORCHESTRATION_TIMEOUT_MS || 15000)
+    orchestration_timeout_ms: Number(env.AI_ORCHESTRATION_TIMEOUT_MS || 15000),
+    instruction_pack_timeout_ms: Number(
+      env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS ||
+        env.AI_ORCHESTRATION_TIMEOUT_MS ||
+        60000
+    )
   };
 }
 

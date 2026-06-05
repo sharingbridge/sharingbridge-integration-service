@@ -28,6 +28,8 @@ services:
         generateValue: true
       - key: AI_ORCHESTRATION_TIMEOUT_MS
         value: "15000"
+      - key: AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS
+        value: "60000"
       - key: AI_SUGGEST_VENDORS_ENABLED
         value: "true"
       - key: AI_INSTRUCTION_PACK_ENABLED

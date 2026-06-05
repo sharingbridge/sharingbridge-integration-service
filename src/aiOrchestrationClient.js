@@ -1,4 +1,17 @@
 const DEFAULT_TIMEOUT_MS = Number(process.env.AI_ORCHESTRATION_TIMEOUT_MS || 15000);
+const DEFAULT_INSTRUCTION_PACK_TIMEOUT_MS = Number(
+  process.env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS ||
+    process.env.AI_ORCHESTRATION_TIMEOUT_MS ||
+    60000
+);
+
+export function resolveInstructionPackTimeoutMs(env = process.env) {
+  return Number(
+    env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS ||
+      env.AI_ORCHESTRATION_TIMEOUT_MS ||
+      60000
+  );
+}
 
 function envFlag(name) {
   const raw = process.env[name];
@@ -35,11 +48,13 @@ export class AiOrchestrationClient {
     baseUrl = process.env.AI_ORCHESTRATION_BASE_URL,
     internalApiKey = process.env.AI_ORCHESTRATION_INTERNAL_API_KEY,
     timeoutMs = DEFAULT_TIMEOUT_MS,
+    instructionPackTimeoutMs = DEFAULT_INSTRUCTION_PACK_TIMEOUT_MS,
     fetchImpl = globalThis.fetch
   } = {}) {
     this.baseUrl = (baseUrl || "").replace(/\/$/, "");
     this.internalApiKey = internalApiKey || "";
     this.timeoutMs = timeoutMs;
+    this.instructionPackTimeoutMs = instructionPackTimeoutMs;
     this.fetchImpl = fetchImpl;
   }
 
@@ -47,13 +62,14 @@ export class AiOrchestrationClient {
     return Boolean(this.baseUrl);
   }
 
-  async postInternal(path, body) {
+  async postInternal(path, body, { timeoutMs } = {}) {
     if (!this.baseUrl) {
       throw new AiOrchestrationError("AI_ORCHESTRATION_BASE_URL is not set.");
     }
 
+    const effectiveTimeoutMs = timeoutMs ?? this.timeoutMs;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
 
     const headers = { "content-type": "application/json" };
     if (this.internalApiKey) {
@@ -108,6 +124,8 @@ export class AiOrchestrationClient {
   }
 
   instructionPack(payload) {
-    return this.postInternal("/internal/v1/llm/instruction-pack", payload);
+    return this.postInternal("/internal/v1/llm/instruction-pack", payload, {
+      timeoutMs: this.instructionPackTimeoutMs
+    });
   }
 }
