@@ -55,6 +55,12 @@ import {
   handleCorsPreflight,
   parseCorsOrigins
 } from "./cors.js";
+import { buildAiBridgeStatus, buildStartupConfig } from "./aiBridgeStatus.js";
+import {
+  logListenMessage,
+  logStartupDiagnostics,
+  resolveLogLevel
+} from "./serviceLog.js";
 
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
 
@@ -114,7 +120,12 @@ export function createIntegrationServer({
     }
 
     if (req.method === "GET" && req.url === "/health") {
-      return sendJson(res, 200, { ok: true, service: "integration-service" });
+      return sendJson(res, 200, {
+        ok: true,
+        service: "integration-service",
+        log_level: resolveLogLevel(),
+        ai: buildAiBridgeStatus()
+      });
     }
 
     if (
@@ -665,10 +676,11 @@ if (isMainModule) {
       });
       return Promise.all([preferencesRepository.init()]).then(() => {
         server.listen(DEFAULT_PORT, () => {
-          // eslint-disable-next-line no-console
-          console.log(
+          logListenMessage(
+            console,
             `Integration service listening on ${DEFAULT_PORT} (PostgreSQL)`
           );
+          logStartupDiagnostics(buildStartupConfig());
         });
       });
     })

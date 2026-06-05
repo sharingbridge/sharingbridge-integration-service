@@ -64,25 +64,44 @@ export function mapInstructionPackRequest(payload, { userId } = {}) {
 
 export async function resolveInstructionPackResponse(
   payload,
-  { aiClient, userId }
+  { aiClient, userId, log = console }
 ) {
   const { isInstructionPackAiEnabled } = await import("./aiOrchestrationClient.js");
+  const { explainInstructionPackMockReason } = await import(
+    "./aiBridgeStatus.js"
+  );
+  const { isLiveAiSource, logWarn } = await import("./serviceLog.js");
+
   if (isInstructionPackAiEnabled() && aiClient?.isConfigured()) {
     try {
       const upstream = await aiClient.instructionPack(
         mapInstructionPackRequest(payload, { userId })
       );
+      const source = upstream.source || "orchestration";
+      if (!isLiveAiSource(source)) {
+        logWarn(
+          log,
+          `[instruction-pack] orchestration returned non-live source=${source} (check AI_LLM_MODE=live and API keys on ai-orchestration)`
+        );
+      }
       return {
         pack_id: upstream.pack_id,
         delivery_instructions: upstream.delivery_instructions,
         generated_at: upstream.generated_at,
-        source: upstream.source || "orchestration",
+        source,
         location_description: upstream.location_description ?? null,
         image_description: upstream.image_description ?? null,
         seeker_appearance_hints: upstream.seeker_appearance_hints ?? null,
         seeker_handover_hints: upstream.seeker_handover_hints ?? null
       };
-    } catch {
+    } catch (error) {
+      const detail = error?.message || String(error);
+      const status = error?.status ? ` status=${error.status}` : "";
+      const code = error?.code ? ` code=${error.code}` : "";
+      logWarn(
+        log,
+        `[instruction-pack] orchestration failed${status}${code}: ${detail}; using fallback_error`
+      );
       const { buildInstructionPackFallback } = await import(
         "./instructionPackFallback.js"
       );
@@ -90,6 +109,10 @@ export async function resolveInstructionPackResponse(
     }
   }
 
+  logWarn(
+    log,
+    `[instruction-pack] using server template: ${explainInstructionPackMockReason()}`
+  );
   const { buildInstructionPackFallback } = await import(
     "./instructionPackFallback.js"
   );

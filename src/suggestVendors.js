@@ -84,21 +84,48 @@ export function buildSuggestVendorsResponse(payload = {}) {
   };
 }
 
-export async function resolveSuggestVendorsResponse(payload, { aiClient } = {}) {
+export async function resolveSuggestVendorsResponse(
+  payload,
+  { aiClient, log = console } = {}
+) {
   const { isSuggestVendorsAiEnabled } = await import("./aiOrchestrationClient.js");
+  const { explainMockSuggestVendorsReason } = await import(
+    "./aiBridgeStatus.js"
+  );
+  const { isLiveAiSource, logWarn } = await import("./serviceLog.js");
+
   if (isSuggestVendorsAiEnabled() && aiClient?.isConfigured()) {
     try {
       const upstream = await aiClient.suggestVendors(payload);
+      const source = upstream.source || "orchestration";
+      if (!isLiveAiSource(source)) {
+        logWarn(
+          log,
+          `[suggest-vendors] orchestration returned non-live source=${source} (check AI_LLM_MODE=live and API keys on ai-orchestration)`
+        );
+      }
       return {
         suggestions: upstream.suggestions ?? [],
         generated_at: upstream.generated_at || new Date().toISOString(),
-        source: upstream.source || "orchestration"
+        source
       };
-    } catch {
+    } catch (error) {
+      const detail = error?.message || String(error);
+      const status = error?.status ? ` status=${error.status}` : "";
+      const code = error?.code ? ` code=${error.code}` : "";
+      logWarn(
+        log,
+        `[suggest-vendors] orchestration failed${status}${code}: ${detail}; using mock_fallback`
+      );
       const fallback = buildSuggestVendorsResponse(payload);
       return { ...fallback, source: "mock_fallback" };
     }
   }
+
+  logWarn(
+    log,
+    `[suggest-vendors] using mock catalog: ${explainMockSuggestVendorsReason()}`
+  );
   return buildSuggestVendorsResponse(payload);
 }
 
