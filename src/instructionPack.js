@@ -51,6 +51,8 @@ export function mapInstructionPackRequest(payload, { userId } = {}) {
     verbal_handover_notes: payload.verbal_handover_notes ?? "",
     has_reference_photo: Boolean(payload.has_reference_photo),
     reference_photo_artifact_id: payload.reference_photo_artifact_id ?? null,
+    reference_photo_view_url: payload.reference_photo_view_url ?? null,
+    reference_photo_thumbnail_url: payload.reference_photo_thumbnail_url ?? null,
     lat: payload.lat ?? null,
     lng: payload.lng ?? null,
     location_label: payload.location_label ?? null,
@@ -74,7 +76,11 @@ export async function resolveInstructionPackResponse(
         pack_id: upstream.pack_id,
         delivery_instructions: upstream.delivery_instructions,
         generated_at: upstream.generated_at,
-        source: upstream.source || "orchestration"
+        source: upstream.source || "orchestration",
+        location_description: upstream.location_description ?? null,
+        image_description: upstream.image_description ?? null,
+        seeker_appearance_hints: upstream.seeker_appearance_hints ?? null,
+        seeker_handover_hints: upstream.seeker_handover_hints ?? null
       };
     } catch {
       const { buildInstructionPackFallback } = await import(

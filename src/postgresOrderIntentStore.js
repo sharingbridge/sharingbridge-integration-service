@@ -28,7 +28,11 @@ function recordToPayload(record) {
     location_label:
       typeof record.location_label === "string" ? record.location_label : "",
     locality_key:
-      typeof record.locality_key === "string" ? record.locality_key : ""
+      typeof record.locality_key === "string" ? record.locality_key : "",
+    location_description: record.location_description ?? "",
+    image_description: record.image_description ?? "",
+    seeker_appearance_hints: record.seeker_appearance_hints ?? "",
+    seeker_handover_hints: record.seeker_handover_hints ?? ""
   };
 }
 
@@ -68,6 +72,20 @@ function rowToRecord(row) {
     location_label:
       typeof payload.location_label === "string" ? payload.location_label : "",
     locality_key: payloadKey || columnKey,
+    location_description:
+      typeof payload.location_description === "string"
+        ? payload.location_description
+        : "",
+    image_description:
+      typeof payload.image_description === "string" ? payload.image_description : "",
+    seeker_appearance_hints:
+      typeof payload.seeker_appearance_hints === "string"
+        ? payload.seeker_appearance_hints
+        : "",
+    seeker_handover_hints:
+      typeof payload.seeker_handover_hints === "string"
+        ? payload.seeker_handover_hints
+        : "",
     created_at: createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
     updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt),
     delivered_at: formatDeliveredAt(row.delivered_at),

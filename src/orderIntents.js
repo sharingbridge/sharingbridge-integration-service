@@ -2,6 +2,10 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function optionalTrimmedString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export function validateCreateOrderIntentRequest(payload) {
   if (!payload || typeof payload !== "object") {
     return "Request body must be a JSON object.";
@@ -68,6 +72,12 @@ export function buildOrderIntentRecord(payload, { userId }) {
     location_lng: null,
     location_label: "",
     locality_key: "",
+    location_description: optionalTrimmedString(payload.location_description),
+    image_description: optionalTrimmedString(payload.image_description),
+    seeker_appearance_hints: optionalTrimmedString(
+      payload.seeker_appearance_hints
+    ),
+    seeker_handover_hints: optionalTrimmedString(payload.seeker_handover_hints),
     created_at: now,
     updated_at: now
   };
@@ -108,7 +118,11 @@ export function formatOrderIntentForApi(record) {
     distance_m:
       typeof record.distance_m === "number" && Number.isFinite(record.distance_m)
         ? Math.round(record.distance_m)
-        : null
+        : null,
+    location_description: record.location_description ?? "",
+    image_description: record.image_description ?? "",
+    seeker_appearance_hints: record.seeker_appearance_hints ?? "",
+    seeker_handover_hints: record.seeker_handover_hints ?? ""
   };
 }
 
@@ -162,6 +176,22 @@ export function mergeOrderIntentRecord(existing, payload) {
     location_lng: existing.location_lng ?? null,
     location_label: existing.location_label ?? "",
     locality_key: existing.locality_key ?? "",
+    location_description:
+      optionalTrimmedString(payload.location_description) ||
+      existing.location_description ||
+      "",
+    image_description:
+      optionalTrimmedString(payload.image_description) ||
+      existing.image_description ||
+      "",
+    seeker_appearance_hints:
+      optionalTrimmedString(payload.seeker_appearance_hints) ||
+      existing.seeker_appearance_hints ||
+      "",
+    seeker_handover_hints:
+      optionalTrimmedString(payload.seeker_handover_hints) ||
+      existing.seeker_handover_hints ||
+      "",
     updated_at: now
   };
 }
