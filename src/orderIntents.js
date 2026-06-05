@@ -10,8 +10,8 @@ export function validateCreateOrderIntentRequest(payload) {
   if (!payload || typeof payload !== "object") {
     return "Request body must be a JSON object.";
   }
-  if (!isNonEmptyString(payload.pack_id) && !isNonEmptyString(payload.instruction_pack_id)) {
-    return "pack_id (or instruction_pack_id) is required.";
+  if (!isNonEmptyString(payload.pack_id)) {
+    return "pack_id is required.";
   }
   if (
     payload.status != null &&
@@ -27,12 +27,7 @@ export function validateCreateOrderIntentRequest(payload) {
 }
 
 export function resolvePackId(payload) {
-  return (
-    (typeof payload.pack_id === "string" && payload.pack_id.trim()) ||
-    (typeof payload.instruction_pack_id === "string" &&
-      payload.instruction_pack_id.trim()) ||
-    ""
-  );
+  return typeof payload.pack_id === "string" ? payload.pack_id.trim() : "";
 }
 
 export function buildOrderIntentRecord(payload, { userId }) {

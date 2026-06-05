@@ -41,15 +41,6 @@ test("buildAiBridgeStatus reports per-route timeout overrides", () => {
   assert.equal(status.instruction_pack_timeout_ms, 60000);
 });
 
-test("buildAiBridgeStatus reads legacy suggest timeout name", () => {
-  const status = buildAiBridgeStatus({
-    AI_ORCHESTRATION_BASE_URL: "https://ai.example.com",
-    AI_ORCHESTRATION_TIMEOUT_MS: "18000"
-  });
-  assert.equal(status.suggest_vendors_timeout_ms, 18000);
-  assert.equal(status.instruction_pack_timeout_ms, 60000);
-});
-
 test("resolveSuggestVendorsResponse logs mock reason when orchestration URL unset", async () => {
   const original = process.env.AI_ORCHESTRATION_BASE_URL;
   delete process.env.AI_ORCHESTRATION_BASE_URL;

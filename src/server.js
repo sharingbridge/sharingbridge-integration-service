@@ -336,11 +336,7 @@ export function createIntegrationServer({
         }
 
         const packId =
-          typeof payload.pack_id === "string"
-            ? payload.pack_id.trim()
-            : typeof payload.instruction_pack_id === "string"
-              ? payload.instruction_pack_id.trim()
-              : "";
+          typeof payload.pack_id === "string" ? payload.pack_id.trim() : "";
         const existingByPack =
           packId.length > 0
             ? await orderIntentStore.findByPackId(userId, packId)
