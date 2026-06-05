@@ -1,22 +1,23 @@
-const DEFAULT_TIMEOUT_MS = Number(process.env.AI_ORCHESTRATION_TIMEOUT_MS || 15000);
-const DEFAULT_INSTRUCTION_PACK_TIMEOUT_MS = Number(
-  process.env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS ||
-    process.env.AI_ORCHESTRATION_TIMEOUT_MS ||
-    60000
-);
-
-export function resolveInstructionPackTimeoutMs(env = process.env) {
-  return Number(
-    env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS ||
-      env.AI_ORCHESTRATION_TIMEOUT_MS ||
-      60000
-  );
-}
-
 function envFlag(name) {
   const raw = process.env[name];
   if (!raw) return false;
   return ["1", "true", "yes", "on"].includes(raw.trim().toLowerCase());
+}
+
+/**
+ * suggest-vendors HTTP timeout. Legacy AI_ORCHESTRATION_TIMEOUT_MS is still read
+ * when the route-specific name is unset.
+ */
+export function resolveSuggestVendorsTimeoutMs(env = process.env) {
+  const raw =
+    env.AI_ORCHESTRATION_SUGGEST_VENDORS_TIMEOUT_MS ||
+    env.AI_ORCHESTRATION_TIMEOUT_MS;
+  return Number(raw || 15000);
+}
+
+/** instruction-pack HTTP timeout (Nominatim + Gemini vision + Groq). */
+export function resolveInstructionPackTimeoutMs(env = process.env) {
+  return Number(env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS || 60000);
 }
 
 export function isAiOrchestrationConfigured() {
@@ -47,8 +48,8 @@ export class AiOrchestrationClient {
   constructor({
     baseUrl = process.env.AI_ORCHESTRATION_BASE_URL,
     internalApiKey = process.env.AI_ORCHESTRATION_INTERNAL_API_KEY,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-    instructionPackTimeoutMs = DEFAULT_INSTRUCTION_PACK_TIMEOUT_MS,
+    timeoutMs = resolveSuggestVendorsTimeoutMs(),
+    instructionPackTimeoutMs = resolveInstructionPackTimeoutMs(),
     fetchImpl = globalThis.fetch
   } = {}) {
     this.baseUrl = (baseUrl || "").replace(/\/$/, "");

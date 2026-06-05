@@ -26,7 +26,7 @@ services:
         sync: false
       - key: AI_ORCHESTRATION_INTERNAL_API_KEY
         generateValue: true
-      - key: AI_ORCHESTRATION_TIMEOUT_MS
+      - key: AI_ORCHESTRATION_SUGGEST_VENDORS_TIMEOUT_MS
         value: "15000"
       - key: AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS
         value: "60000"

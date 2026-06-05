@@ -20,23 +20,33 @@ test("buildAiBridgeStatus reports active path when env is wired", () => {
     AI_SUGGEST_VENDORS_ENABLED: "true",
     AI_INSTRUCTION_PACK_ENABLED: "true",
     AI_ORCHESTRATION_INTERNAL_API_KEY: "secret",
-    AI_ORCHESTRATION_TIMEOUT_MS: "12000"
+    AI_ORCHESTRATION_SUGGEST_VENDORS_TIMEOUT_MS: "12000",
+    AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS: "12000"
   });
   assert.equal(status.orchestration_base_url_set, true);
   assert.equal(status.orchestration_host, "ai.example.com");
   assert.equal(status.suggest_vendors_path_active, true);
   assert.equal(status.internal_api_key_set, true);
-  assert.equal(status.orchestration_timeout_ms, 12000);
+  assert.equal(status.suggest_vendors_timeout_ms, 12000);
   assert.equal(status.instruction_pack_timeout_ms, 12000);
 });
 
-test("buildAiBridgeStatus reports instruction-pack timeout override", () => {
+test("buildAiBridgeStatus reports per-route timeout overrides", () => {
   const status = buildAiBridgeStatus({
     AI_ORCHESTRATION_BASE_URL: "https://ai.example.com",
-    AI_ORCHESTRATION_TIMEOUT_MS: "15000",
+    AI_ORCHESTRATION_SUGGEST_VENDORS_TIMEOUT_MS: "15000",
     AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS: "60000"
   });
-  assert.equal(status.orchestration_timeout_ms, 15000);
+  assert.equal(status.suggest_vendors_timeout_ms, 15000);
+  assert.equal(status.instruction_pack_timeout_ms, 60000);
+});
+
+test("buildAiBridgeStatus reads legacy suggest timeout name", () => {
+  const status = buildAiBridgeStatus({
+    AI_ORCHESTRATION_BASE_URL: "https://ai.example.com",
+    AI_ORCHESTRATION_TIMEOUT_MS: "18000"
+  });
+  assert.equal(status.suggest_vendors_timeout_ms, 18000);
   assert.equal(status.instruction_pack_timeout_ms, 60000);
 });
 
