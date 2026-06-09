@@ -21,6 +21,7 @@ import {
   extractAuthFromHeaders,
   extractUserIdFromHeaders,
   requireDonorRole,
+  requireReporterRole,
   resolveAuthenticatedUserId
 } from "./authContext.js";
 import { OrderIntentStore } from "./orderIntentStore.js";
@@ -103,6 +104,7 @@ export function createIntegrationServer({
   preferencesRepository,
   aiOrchestrationClient = new AiOrchestrationClient(),
   orderIntentStore = new OrderIntentStore(),
+  seekerDemandStore = null,
   corsConfig = parseCorsOrigins()
 }) {
   if (!preferencesRepository) {
@@ -152,6 +154,12 @@ export function createIntegrationServer({
             return sendJson(res, 400, {
               code: "invalid_json",
               message: "Request body must be valid JSON."
+            });
+          }
+          if (error?.status === 503) {
+            return sendJson(res, 503, {
+              code: error.code || "ai_unavailable",
+              message: error?.message || "AI service unavailable."
             });
           }
           return sendJson(res, 500, {
@@ -211,12 +219,135 @@ export function createIntegrationServer({
               message: "Request body must be valid JSON."
             });
           }
+          if (error?.status === 503) {
+            return sendJson(res, 503, {
+              code: error.code || "ai_unavailable",
+              message: error?.message || "AI service unavailable."
+            });
+          }
           return sendJson(res, 500, {
             code: "internal_error",
             message: error?.message || "Unexpected error."
           });
         });
 
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/v1/demand/board") {
+      const auth = extractAuthFromHeaders(req.headers);
+      if (!auth) {
+        return sendJson(res, 401, {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        });
+      }
+      const { buildDemandBoardSnapshot } = await import("./demandBoard.js");
+      const snapshot = await buildDemandBoardSnapshot({
+        role: auth.role,
+        seekerDemandStore
+      });
+      return sendJson(res, 200, snapshot);
+    }
+
+    if (
+      req.method === "GET" &&
+      (req.url === "/v1/seeker-demands" ||
+        req.url.startsWith("/v1/seeker-demands?"))
+    ) {
+      const auth = extractAuthFromHeaders(req.headers);
+      if (!auth) {
+        return sendJson(res, 401, {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        });
+      }
+      if (!seekerDemandStore) {
+        return sendJson(res, 503, {
+          code: "seeker_demand_unavailable",
+          message: "Seeker demand store is not configured."
+        });
+      }
+      try {
+        const { formatSeekerDemandForApi } = await import("./seekerDemands.js");
+        const reporterFilter = isCoordinatorApiRole(auth.role)
+          ? null
+          : auth.userId;
+        const rows = await seekerDemandStore.listRecent({
+          limit: 100,
+          reporterUserIdFilter: reporterFilter
+        });
+        return sendJson(res, 200, {
+          user_id: auth.userId,
+          role: auth.role,
+          seeker_demands: rows.map(formatSeekerDemandForApi)
+        });
+      } catch (error) {
+        return sendJson(res, error?.status || 500, {
+          code: error?.code || "seeker_demand_list_error",
+          message: error?.message || "Could not list seeker demands."
+        });
+      }
+    }
+
+    if (req.method === "POST" && req.url === "/v1/seeker-demands") {
+      readJsonBody(req)
+        .then(async (payload) => {
+          const auth = extractAuthFromHeaders(req.headers);
+          const reporterGuard = requireReporterRole(auth);
+          if (reporterGuard.error) {
+            return sendJson(
+              res,
+              reporterGuard.error.status,
+              reporterGuard.error.body
+            );
+          }
+          const {
+            validateCreateSeekerDemandRequest,
+            buildSeekerDemandRecord,
+            formatSeekerDemandForApi
+          } = await import("./seekerDemands.js");
+          const validationError = validateCreateSeekerDemandRequest(payload);
+          if (validationError) {
+            return sendJson(res, 400, {
+              code: "invalid_request",
+              message: validationError
+            });
+          }
+          if (!seekerDemandStore) {
+            return sendJson(res, 503, {
+              code: "seeker_demand_unavailable",
+              message: "Seeker demand store is not configured."
+            });
+          }
+          const { applyLocationToRecord, locationFromPayload } =
+            await import("./orderIntentLocation.js");
+          let record = buildSeekerDemandRecord(payload, {
+            reportedByUserId: auth.userId
+          });
+          record = applyLocationToRecord(record, locationFromPayload(payload));
+          const saved = await seekerDemandStore.insertForReporter(
+            auth.userId,
+            record
+          );
+          return sendJson(res, 201, {
+            user_id: auth.userId,
+            created: true,
+            seeker_demand: formatSeekerDemandForApi(saved)
+          });
+        })
+        .catch((error) => {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, error?.status || 500, {
+            code: error?.code || "seeker_demand_create_error",
+            message: error?.message || "Could not save seeker demand."
+          });
+        });
       return;
     }
 
@@ -650,6 +781,19 @@ async function buildDefaultOrderIntentStore() {
   return store;
 }
 
+async function buildDefaultSeekerDemandStore() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl?.trim()) {
+    return null;
+  }
+  const { PostgresSeekerDemandStore } = await import(
+    "./postgresSeekerDemandStore.js"
+  );
+  const store = await PostgresSeekerDemandStore.create(databaseUrl);
+  await store.init();
+  return store;
+}
+
 function buildDefaultPreferencesRepository() {
   const baseUrl = process.env.USER_SERVICE_BASE_URL?.trim();
   if (!baseUrl) {
@@ -664,11 +808,15 @@ const isMainModule =
   process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   const preferencesRepository = buildDefaultPreferencesRepository();
-  buildDefaultOrderIntentStore()
-    .then((orderIntentStore) => {
+  Promise.all([
+    buildDefaultOrderIntentStore(),
+    buildDefaultSeekerDemandStore()
+  ])
+    .then(([orderIntentStore, seekerDemandStore]) => {
       const server = createIntegrationServer({
         preferencesRepository,
-        orderIntentStore
+        orderIntentStore,
+        seekerDemandStore
       });
       return Promise.all([preferencesRepository.init()]).then(() => {
         server.listen(DEFAULT_PORT, () => {

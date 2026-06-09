@@ -113,6 +113,14 @@ export async function resolveSuggestVendorsResponse(
       const detail = error?.message || String(error);
       const status = error?.status ? ` status=${error.status}` : "";
       const code = error?.code ? ` code=${error.code}` : "";
+      const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
+        await import("./aiMockFallback.js");
+      if (!isAiMockFallbackEnabled()) {
+        throw new AiServiceUnavailableError(
+          `Suggest vendors orchestration failed${status}${code}: ${detail}`,
+          { code: "orchestration_unavailable" }
+        );
+      }
       logWarn(
         log,
         `[suggest-vendors] orchestration failed${status}${code}: ${detail}; using mock_fallback`
@@ -120,6 +128,15 @@ export async function resolveSuggestVendorsResponse(
       const fallback = buildSuggestVendorsResponse(payload);
       return { ...fallback, source: "mock_fallback" };
     }
+  }
+
+  const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
+    await import("./aiMockFallback.js");
+  if (!isAiMockFallbackEnabled()) {
+    throw new AiServiceUnavailableError(
+      `Suggest vendors unavailable: ${explainMockSuggestVendorsReason()}`,
+      { code: "ai_disabled" }
+    );
   }
 
   logWarn(

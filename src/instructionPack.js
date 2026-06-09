@@ -114,6 +114,14 @@ export async function resolveInstructionPackResponse(
         error?.code === "timeout"
           ? " (instruction-pack uses Nominatim + Gemini vision + Groq; increase AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS)"
           : "";
+      const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
+        await import("./aiMockFallback.js");
+      if (!isAiMockFallbackEnabled()) {
+        throw new AiServiceUnavailableError(
+          `Instruction pack orchestration failed${status}${code}: ${detail}${timeoutHint}`,
+          { code: "orchestration_unavailable" }
+        );
+      }
       logWarn(
         log,
         `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}; using fallback_error`
@@ -123,6 +131,15 @@ export async function resolveInstructionPackResponse(
       );
       return { ...buildInstructionPackFallback(payload), source: "fallback_error" };
     }
+  }
+
+  const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
+    await import("./aiMockFallback.js");
+  if (!isAiMockFallbackEnabled()) {
+    throw new AiServiceUnavailableError(
+      `Instruction pack unavailable: ${explainInstructionPackMockReason()}`,
+      { code: "ai_disabled" }
+    );
   }
 
   logWarn(

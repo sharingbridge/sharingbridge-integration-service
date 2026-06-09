@@ -82,6 +82,32 @@ export function requireCoordinatorRole(auth) {
   return { error: null };
 }
 
+export function requireReporterRole(auth) {
+  if (!auth) {
+    return {
+      error: {
+        status: 401,
+        body: {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        }
+      }
+    };
+  }
+  if (auth.role !== "donor" && auth.role !== "coordinator") {
+    return {
+      error: {
+        status: 403,
+        body: {
+          code: "forbidden",
+          message: "This action requires a donor or coordinator account."
+        }
+      }
+    };
+  }
+  return { error: null };
+}
+
 /**
  * Reconcile a header-derived user_id with one supplied in the request
  * body/query. Returns { userId, error } where error (when set) is an

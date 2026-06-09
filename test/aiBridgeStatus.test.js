@@ -43,8 +43,10 @@ test("buildAiBridgeStatus reports per-route timeout overrides", () => {
 
 test("resolveSuggestVendorsResponse logs mock reason when orchestration URL unset", async () => {
   const original = process.env.AI_ORCHESTRATION_BASE_URL;
+  const originalFallback = process.env.AI_MOCK_FALLBACK_ENABLED;
   delete process.env.AI_ORCHESTRATION_BASE_URL;
   process.env.AI_SUGGEST_VENDORS_ENABLED = "true";
+  process.env.AI_MOCK_FALLBACK_ENABLED = "true";
 
   const warnings = [];
   const result = await resolveSuggestVendorsResponse(
@@ -57,6 +59,13 @@ test("resolveSuggestVendorsResponse logs mock reason when orchestration URL unse
 
   if (original !== undefined) {
     process.env.AI_ORCHESTRATION_BASE_URL = original;
+  } else {
+    delete process.env.AI_ORCHESTRATION_BASE_URL;
+  }
+  if (originalFallback !== undefined) {
+    process.env.AI_MOCK_FALLBACK_ENABLED = originalFallback;
+  } else {
+    delete process.env.AI_MOCK_FALLBACK_ENABLED;
   }
 
   assert.equal(result.source, "mock");
