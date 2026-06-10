@@ -32,7 +32,13 @@ function recordToPayload(record) {
     location_description: record.location_description ?? "",
     image_description: record.image_description ?? "",
     seeker_appearance_hints: record.seeker_appearance_hints ?? "",
-    seeker_handover_hints: record.seeker_handover_hints ?? ""
+    seeker_handover_hints: record.seeker_handover_hints ?? "",
+    payment_status:
+      typeof record.payment_status === "string" ? record.payment_status : "pending",
+    delivery_status:
+      typeof record.delivery_status === "string" ? record.delivery_status : "pending",
+    delivery_photo_url:
+      typeof record.delivery_photo_url === "string" ? record.delivery_photo_url : ""
   };
 }
 
@@ -86,6 +92,12 @@ function rowToRecord(row) {
       typeof payload.seeker_handover_hints === "string"
         ? payload.seeker_handover_hints
         : "",
+    payment_status:
+      typeof payload.payment_status === "string" ? payload.payment_status : "pending",
+    delivery_status:
+      typeof payload.delivery_status === "string" ? payload.delivery_status : "pending",
+    delivery_photo_url:
+      typeof payload.delivery_photo_url === "string" ? payload.delivery_photo_url : "",
     created_at: createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
     updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt),
     delivered_at: formatDeliveredAt(row.delivered_at),
@@ -165,10 +177,63 @@ export class PostgresOrderIntentStore {
       return null;
     }
     const result = await this.pool.query(
-      `SELECT order_intent_id, user_id, pack_id, status, payload, created_at, updated_at
+      `SELECT order_intent_id, user_id, pack_id, status, payload, created_at, updated_at, delivered_at
        FROM order_intents
        WHERE user_id = $1 AND order_intent_id = $2`,
       [userId, normalizedId]
+    );
+    return result.rowCount > 0 ? rowToRecord(result.rows[0]) : null;
+  }
+
+  async findByIdAny(orderIntentId) {
+    const normalizedId = typeof orderIntentId === "string" ? orderIntentId.trim() : "";
+    if (!normalizedId) {
+      return null;
+    }
+    const result = await this.pool.query(
+      `SELECT order_intent_id, user_id, pack_id, status, payload, created_at, updated_at, delivered_at
+       FROM order_intents
+       WHERE order_intent_id = $1`,
+      [normalizedId]
+    );
+    return result.rowCount > 0 ? rowToRecord(result.rows[0]) : null;
+  }
+
+  async updateRecordForUser(userId, record) {
+    const existing = await this.findById(userId, record.id);
+    if (!existing) {
+      return null;
+    }
+    const payload = recordToPayload(record);
+    const updatedAt = record.updated_at ?? new Date().toISOString();
+    const deliveredAt =
+      typeof record.delivered_at === "string" && record.delivered_at.trim()
+        ? record.delivered_at.trim()
+        : null;
+    const { localityKey, lng, lat } = geoColumnsFromRecord(record);
+    const lngParam = "$9";
+    const latParam = "$10";
+    const result = await this.pool.query(
+      `UPDATE order_intents SET
+         status = $3,
+         payload = $4::jsonb,
+         updated_at = $5::timestamptz,
+         locality_key = $6,
+         location = ${locationSqlFragment(lngParam, latParam)},
+         delivered_at = $7::timestamptz
+       WHERE user_id = $1 AND order_intent_id = $2
+       RETURNING order_intent_id, user_id, pack_id, status, payload, created_at, updated_at, delivered_at`,
+      [
+        userId,
+        record.id,
+        record.status,
+        JSON.stringify(payload),
+        updatedAt,
+        localityKey || null,
+        deliveredAt,
+        lng,
+        lat
+      ]
     );
     return result.rowCount > 0 ? rowToRecord(result.rows[0]) : null;
   }

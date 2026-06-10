@@ -73,6 +73,9 @@ export function buildOrderIntentRecord(payload, { userId }) {
       payload.seeker_appearance_hints
     ),
     seeker_handover_hints: optionalTrimmedString(payload.seeker_handover_hints),
+    payment_status: "pending",
+    delivery_status: "pending",
+    delivery_photo_url: "",
     created_at: now,
     updated_at: now
   };
@@ -117,7 +120,19 @@ export function formatOrderIntentForApi(record) {
     location_description: record.location_description ?? "",
     image_description: record.image_description ?? "",
     seeker_appearance_hints: record.seeker_appearance_hints ?? "",
-    seeker_handover_hints: record.seeker_handover_hints ?? ""
+    seeker_handover_hints: record.seeker_handover_hints ?? "",
+    payment_status:
+      typeof record.payment_status === "string" && record.payment_status.trim()
+        ? record.payment_status.trim()
+        : "pending",
+    delivery_status:
+      typeof record.delivery_status === "string" && record.delivery_status.trim()
+        ? record.delivery_status.trim()
+        : "pending",
+    delivery_photo_url:
+      typeof record.delivery_photo_url === "string"
+        ? record.delivery_photo_url.trim()
+        : ""
   };
 }
 
@@ -187,6 +202,10 @@ export function mergeOrderIntentRecord(existing, payload) {
       optionalTrimmedString(payload.seeker_handover_hints) ||
       existing.seeker_handover_hints ||
       "",
+    payment_status: existing.payment_status ?? "pending",
+    delivery_status: existing.delivery_status ?? "pending",
+    delivery_photo_url: existing.delivery_photo_url ?? "",
+    delivered_at: existing.delivered_at ?? null,
     updated_at: now
   };
 }

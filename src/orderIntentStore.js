@@ -69,6 +69,34 @@ export class OrderIntentStore {
     return list.find((record) => record?.id === normalizedId) ?? null;
   }
 
+  findByIdAny(orderIntentId) {
+    const normalizedId =
+      typeof orderIntentId === "string" ? orderIntentId.trim() : "";
+    if (!normalizedId) {
+      return null;
+    }
+    for (const list of Object.values(this.byUser)) {
+      if (!Array.isArray(list)) {
+        continue;
+      }
+      const match = list.find((record) => record?.id === normalizedId);
+      if (match) {
+        return match;
+      }
+    }
+    return null;
+  }
+
+  async updateRecordForUser(userId, record) {
+    const list = this._listForUser(userId);
+    const index = list.findIndex((item) => item?.id === record.id);
+    if (index < 0) {
+      return null;
+    }
+    list[index] = { ...list[index], ...record, user_id: userId };
+    return list[index];
+  }
+
   async createForUser(userId, record) {
     this._listForUser(userId).push(record);
     return record;

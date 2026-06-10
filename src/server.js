@@ -105,6 +105,7 @@ export function createIntegrationServer({
   aiOrchestrationClient = new AiOrchestrationClient(),
   orderIntentStore = new OrderIntentStore(),
   seekerDemandStore = null,
+  marketplaceStore = null,
   corsConfig = parseCorsOrigins()
 }) {
   if (!preferencesRepository) {
@@ -245,9 +246,116 @@ export function createIntegrationServer({
       const { buildDemandBoardSnapshot } = await import("./demandBoard.js");
       const snapshot = await buildDemandBoardSnapshot({
         role: auth.role,
-        seekerDemandStore
+        seekerDemandStore,
+        marketplaceStore
       });
       return sendJson(res, 200, snapshot);
+    }
+
+    if (req.method === "POST" && req.url === "/v1/pledges") {
+      readJsonBody(req)
+        .then(async (payload) => {
+          const auth = extractAuthFromHeaders(req.headers);
+          const donorGuard = requireDonorRole(auth);
+          if (donorGuard.error) {
+            return sendJson(res, donorGuard.error.status, donorGuard.error.body);
+          }
+          if (!marketplaceStore) {
+            return sendJson(res, 503, {
+              code: "marketplace_unavailable",
+              message: "Marketplace store is not configured."
+            });
+          }
+          const {
+            validateCreatePledgeRequest,
+            buildPledgeRecord,
+            formatPledgeForApi
+          } = await import("./marketplace.js");
+          const validationError = validateCreatePledgeRequest(payload);
+          if (validationError) {
+            return sendJson(res, 400, {
+              code: "invalid_request",
+              message: validationError
+            });
+          }
+          const record = buildPledgeRecord(payload, {
+            pledgedByUserId: auth.userId
+          });
+          const saved = await marketplaceStore.insertPledge(record);
+          return sendJson(res, 201, {
+            pledge: formatPledgeForApi(saved)
+          });
+        })
+        .catch((error) => {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, 500, {
+            code: "internal_error",
+            message: error?.message || "Unexpected error."
+          });
+        });
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/v1/vendor-bids") {
+      readJsonBody(req)
+        .then(async (payload) => {
+          const auth = extractAuthFromHeaders(req.headers);
+          if (!auth) {
+            return sendJson(res, 401, {
+              code: "missing_auth_context",
+              message: "A valid Bearer token is required."
+            });
+          }
+          if (!isCoordinatorApiRole(auth.role)) {
+            return sendJson(res, 403, {
+              code: "forbidden",
+              message: "Coordinator role required to submit vendor bids (MVP)."
+            });
+          }
+          if (!marketplaceStore) {
+            return sendJson(res, 503, {
+              code: "marketplace_unavailable",
+              message: "Marketplace store is not configured."
+            });
+          }
+          const {
+            validateCreateVendorBidRequest,
+            buildVendorBidRecord,
+            formatVendorBidForApi
+          } = await import("./marketplace.js");
+          const validationError = validateCreateVendorBidRequest(payload);
+          if (validationError) {
+            return sendJson(res, 400, {
+              code: "invalid_request",
+              message: validationError
+            });
+          }
+          const record = buildVendorBidRecord(payload, {
+            submittedByUserId: auth.userId
+          });
+          const saved = await marketplaceStore.insertVendorBid(record);
+          return sendJson(res, 201, {
+            vendor_bid: formatVendorBidForApi(saved)
+          });
+        })
+        .catch((error) => {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, 500, {
+            code: "internal_error",
+            message: error?.message || "Unexpected error."
+          });
+        });
+      return;
     }
 
     if (
@@ -424,6 +532,98 @@ export function createIntegrationServer({
         };
       }
       return sendJson(res, 200, payload);
+    }
+
+    if (req.method === "PATCH") {
+      const patchUrl = new URL(req.url, "http://localhost");
+      const patchPrefix = "/v1/donor-seeker/order-intents/";
+      if (patchUrl.pathname.startsWith(patchPrefix)) {
+        const orderIntentId = decodeURIComponent(
+          patchUrl.pathname.slice(patchPrefix.length)
+        );
+        try {
+          const payload = await readJsonBody(req);
+          const auth = extractAuthFromHeaders(req.headers);
+          if (!auth) {
+            return sendJson(res, 401, {
+              code: "missing_auth_context",
+              message: "A valid Bearer token is required."
+            });
+          }
+          const {
+            validatePatchOrderIntentRequest,
+            applyOrderIntentPatch
+          } = await import("./orderIntentPatch.js");
+          const validationError = validatePatchOrderIntentRequest(payload);
+          if (validationError) {
+            return sendJson(res, 400, {
+              code: "invalid_request",
+              message: validationError
+            });
+          }
+          const coordinator = isCoordinatorApiRole(auth.role);
+          let existing = null;
+          let ownerUserId = auth.userId;
+          if (coordinator) {
+            existing = await orderIntentStore.findByIdAny?.(orderIntentId);
+            ownerUserId = existing?.user_id ?? auth.userId;
+          } else {
+            const donorGuard = requireDonorRole(auth);
+            if (donorGuard.error) {
+              return sendJson(
+                res,
+                donorGuard.error.status,
+                donorGuard.error.body
+              );
+            }
+            existing = await orderIntentStore.findById(auth.userId, orderIntentId);
+          }
+          if (!existing) {
+            return sendJson(res, 404, {
+              code: "not_found",
+              message: "Order intent not found."
+            });
+          }
+          let patched;
+          try {
+            patched = applyOrderIntentPatch(existing, payload, {
+              role: auth.role
+            });
+          } catch (error) {
+            if (error?.code === "forbidden_patch") {
+              return sendJson(res, 403, {
+                code: "forbidden",
+                message: error.message
+              });
+            }
+            throw error;
+          }
+          const saved = await orderIntentStore.updateRecordForUser?.(
+            ownerUserId,
+            patched
+          );
+          if (!saved) {
+            return sendJson(res, 500, {
+              code: "update_failed",
+              message: "Could not update order intent."
+            });
+          }
+          return sendJson(res, 200, {
+            order_intent: formatOrderIntentForApi(saved)
+          });
+        } catch (error) {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, 500, {
+            code: "internal_error",
+            message: error?.message || "Unexpected error."
+          });
+        }
+      }
     }
 
     if (
@@ -782,6 +982,13 @@ async function buildDefaultOrderIntentStore() {
   return store;
 }
 
+async function buildDefaultMarketplaceStore() {
+  const { InMemoryMarketplaceStore } = await import(
+    "./inMemoryMarketplaceStore.js"
+  );
+  return new InMemoryMarketplaceStore();
+}
+
 async function buildDefaultSeekerDemandStore() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl?.trim()) {
@@ -811,13 +1018,15 @@ if (isMainModule) {
   const preferencesRepository = buildDefaultPreferencesRepository();
   Promise.all([
     buildDefaultOrderIntentStore(),
-    buildDefaultSeekerDemandStore()
+    buildDefaultSeekerDemandStore(),
+    buildDefaultMarketplaceStore()
   ])
-    .then(([orderIntentStore, seekerDemandStore]) => {
+    .then(([orderIntentStore, seekerDemandStore, marketplaceStore]) => {
       const server = createIntegrationServer({
         preferencesRepository,
         orderIntentStore,
-        seekerDemandStore
+        seekerDemandStore,
+        marketplaceStore
       });
       return Promise.all([preferencesRepository.init()]).then(() => {
         server.listen(DEFAULT_PORT, () => {
