@@ -7,6 +7,7 @@ import {
  * Phase C.1 — demand board from persisted seeker_demands (+ vendor bids later).
  */
 import {
+  enrichDemandWindowsWithSupply,
   formatPledgeForApi,
   formatVendorBidForApi
 } from "./marketplace.js";
@@ -20,7 +21,6 @@ export async function buildDemandBoardSnapshot({
     ? await seekerDemandStore.listRecent({ limit: 100 })
     : [];
   const formatted = rows.map(formatSeekerDemandForApi);
-  const windows = aggregateDemandByLocality(formatted);
   const schemaReady = seekerDemandStore?.enabled !== false;
   const pledges = marketplaceStore
     ? (await marketplaceStore.listPledges({ limit: 100 })).map(formatPledgeForApi)
@@ -30,6 +30,11 @@ export async function buildDemandBoardSnapshot({
         formatVendorBidForApi
       )
     : [];
+  const windows = enrichDemandWindowsWithSupply(
+    aggregateDemandByLocality(formatted),
+    pledges,
+    vendorBids
+  );
   const standardOffers = marketplaceStore
     ? await marketplaceStore.listStandardOffers()
     : [];
@@ -40,7 +45,7 @@ export async function buildDemandBoardSnapshot({
     role: role ?? null,
     message: schemaReady
       ? marketplaceLive
-        ? "Seeker demands, pledges, and vendor bids on the demand board. Allocation engine is not live yet."
+        ? "Seeker demands, pledges, and vendor bids persist in Postgres. Gaps per locality are computed; auto-allocation and donor notify are not live yet."
         : "Seeker demands recorded. Run schema-marketplace-migration.sql for pledges and vendor bids."
       : "Run schema-seeker-demands-migration.sql in Supabase to enable seeker demand recording.",
     standard_offers: standardOffers,

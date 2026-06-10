@@ -293,8 +293,8 @@ export function createIntegrationServer({
               message: "Request body must be valid JSON."
             });
           }
-          return sendJson(res, 500, {
-            code: "internal_error",
+          return sendJson(res, error?.status || 500, {
+            code: error?.code || "internal_error",
             message: error?.message || "Unexpected error."
           });
         });
@@ -350,8 +350,8 @@ export function createIntegrationServer({
               message: "Request body must be valid JSON."
             });
           }
-          return sendJson(res, 500, {
-            code: "internal_error",
+          return sendJson(res, error?.status || 500, {
+            code: error?.code || "internal_error",
             message: error?.message || "Unexpected error."
           });
         });
@@ -983,6 +983,15 @@ async function buildDefaultOrderIntentStore() {
 }
 
 async function buildDefaultMarketplaceStore() {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (databaseUrl) {
+    const { PostgresMarketplaceStore } = await import(
+      "./postgresMarketplaceStore.js"
+    );
+    const store = await PostgresMarketplaceStore.create(databaseUrl);
+    await store.init();
+    return store;
+  }
   const { InMemoryMarketplaceStore } = await import(
     "./inMemoryMarketplaceStore.js"
   );

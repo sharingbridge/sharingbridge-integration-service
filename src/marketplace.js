@@ -104,3 +104,40 @@ export function formatVendorBidForApi(record) {
     updated_at: record.updated_at
   };
 }
+
+function sumUnitsByLocality(rows, valueKey) {
+  const byKey = new Map();
+  for (const row of rows) {
+    const key =
+      (row.locality_key && String(row.locality_key).trim()) || "unknown";
+    const amount = Number(row[valueKey]) || 0;
+    byKey.set(key, (byKey.get(key) ?? 0) + amount);
+  }
+  return byKey;
+}
+
+/**
+ * Wave 2 — read-only supply/demand gap per aggregated locality bucket.
+ * Full allocation (assign pledges to vendors) is Phase I.
+ */
+export function enrichDemandWindowsWithSupply(
+  demandWindows,
+  pledges,
+  vendorBids
+) {
+  const pledgedByKey = sumUnitsByLocality(pledges, "meal_units");
+  const bidByKey = sumUnitsByLocality(vendorBids, "portions");
+
+  return demandWindows.map((window) => {
+    const pledged = pledgedByKey.get(window.locality_key) ?? 0;
+    const bidPortions = bidByKey.get(window.locality_key) ?? 0;
+    const demand = Number(window.meal_units_total) || 0;
+    return {
+      ...window,
+      pledged_units_total: pledged,
+      bid_portions_total: bidPortions,
+      unmet_demand_units: Math.max(0, demand - pledged),
+      supply_gap_units: Math.max(0, demand - bidPortions)
+    };
+  });
+}
