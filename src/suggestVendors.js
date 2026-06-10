@@ -96,7 +96,7 @@ export async function resolveSuggestVendorsResponse(
 
   if (isSuggestVendorsAiEnabled() && aiClient?.isConfigured()) {
     try {
-      const upstream = await aiClient.suggestVendors(payload);
+      const upstream = await aiClient.suggestVendors(payload, { log });
       const source = upstream.source || "orchestration";
       if (!isLiveAiSource(source)) {
         logWarn(
@@ -113,21 +113,25 @@ export async function resolveSuggestVendorsResponse(
       const detail = error?.message || String(error);
       const status = error?.status ? ` status=${error.status}` : "";
       const code = error?.code ? ` code=${error.code}` : "";
+      const rateLimitHint =
+        error?.code === "rate_limited"
+          ? " (Render or AI provider rate limit — wait 2 minutes, then try once; integration retries with longer backoff)"
+          : "";
       const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
         await import("./aiMockFallback.js");
       if (!isAiMockFallbackEnabled()) {
         logWarn(
           log,
-          `[suggest-vendors] orchestration failed${status}${code}: ${detail}`
+          `[suggest-vendors] orchestration failed${status}${code}: ${detail}${rateLimitHint}`
         );
         throw new AiServiceUnavailableError(
-          `Suggest vendors orchestration failed${status}${code}: ${detail}`,
+          `Suggest vendors orchestration failed${status}${code}: ${detail}${rateLimitHint}`,
           { code: "orchestration_unavailable" }
         );
       }
       logWarn(
         log,
-        `[suggest-vendors] orchestration failed${status}${code}: ${detail}; using mock_fallback`
+        `[suggest-vendors] orchestration failed${status}${code}: ${detail}${rateLimitHint}; using mock_fallback`
       );
       const fallback = buildSuggestVendorsResponse(payload);
       return { ...fallback, source: "mock_fallback" };

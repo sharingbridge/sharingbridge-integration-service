@@ -14,10 +14,33 @@ export function resolveInstructionPackTimeoutMs(env = process.env) {
   return Number(env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS || 60000);
 }
 
+function clampRetryAttempts(value, fallback = 5) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
+}
+
+/** Shared retry budget when Render edge or upstream returns 429/502/503. */
+export function resolveOrchestrationRetryMaxAttempts(env = process.env) {
+  if (env.AI_ORCHESTRATION_RETRY_MAX_ATTEMPTS) {
+    return clampRetryAttempts(env.AI_ORCHESTRATION_RETRY_MAX_ATTEMPTS);
+  }
+  return 5;
+}
+
 /** instruction-pack retries when Render edge or upstream returns 429/502/503. */
 export function resolveInstructionPackRetryMaxAttempts(env = process.env) {
-  const n = Number(env.AI_ORCHESTRATION_INSTRUCTION_PACK_RETRY_MAX_ATTEMPTS || 5);
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 5;
+  if (env.AI_ORCHESTRATION_INSTRUCTION_PACK_RETRY_MAX_ATTEMPTS) {
+    return clampRetryAttempts(env.AI_ORCHESTRATION_INSTRUCTION_PACK_RETRY_MAX_ATTEMPTS);
+  }
+  return resolveOrchestrationRetryMaxAttempts(env);
+}
+
+/** suggest-vendors retries (same Render throttle path as instruction-pack). */
+export function resolveSuggestVendorsRetryMaxAttempts(env = process.env) {
+  if (env.AI_ORCHESTRATION_SUGGEST_VENDORS_RETRY_MAX_ATTEMPTS) {
+    return clampRetryAttempts(env.AI_ORCHESTRATION_SUGGEST_VENDORS_RETRY_MAX_ATTEMPTS);
+  }
+  return resolveOrchestrationRetryMaxAttempts(env);
 }
 
 export function resolveOrchestrationRetryDelayMs(
@@ -31,10 +54,6 @@ export function resolveOrchestrationRetryDelayMs(
   const delay = Math.min(max, base * safeAttempt);
   const jitter = Math.floor(Math.random() * 1000);
   return delay + jitter;
-}
-
-export function defaultSuggestVendorsRetryDelayMs(attempt) {
-  return 2000 * (Number.isFinite(attempt) && attempt > 0 ? attempt : 1);
 }
 
 export function isAiOrchestrationConfigured() {
@@ -98,8 +117,8 @@ export class AiOrchestrationClient {
     body,
     {
       timeoutMs,
-      maxAttempts = 3,
-      retryDelayMs = defaultSuggestVendorsRetryDelayMs,
+      maxAttempts = resolveOrchestrationRetryMaxAttempts(),
+      retryDelayMs = (attempt) => resolveOrchestrationRetryDelayMs(attempt),
       log = console
     } = {}
   ) {
@@ -192,8 +211,12 @@ export class AiOrchestrationClient {
     return parsed;
   }
 
-  suggestVendors(payload) {
-    return this.postInternal("/internal/v1/llm/suggest-vendors", payload);
+  suggestVendors(payload, { log = console } = {}) {
+    return this.postInternal("/internal/v1/llm/suggest-vendors", payload, {
+      maxAttempts: resolveSuggestVendorsRetryMaxAttempts(),
+      retryDelayMs: (attempt) => resolveOrchestrationRetryDelayMs(attempt),
+      log
+    });
   }
 
   instructionPack(payload, { log = console } = {}) {

@@ -6,6 +6,8 @@ import {
   resolveInstructionPackRetryMaxAttempts,
   resolveInstructionPackTimeoutMs,
   resolveOrchestrationRetryDelayMs,
+  resolveOrchestrationRetryMaxAttempts,
+  resolveSuggestVendorsRetryMaxAttempts,
   resolveSuggestVendorsTimeoutMs
 } from "../src/aiOrchestrationClient.js";
 
@@ -78,6 +80,14 @@ test("isRetryableOrchestrationError treats 429 invalid_json as retryable", () =>
     code: "rate_limited"
   });
   assert.equal(AiOrchestrationClient.isRetryableOrchestrationError(error), true);
+});
+
+test("resolveOrchestrationRetryMaxAttempts defaults to 5", () => {
+  assert.equal(resolveOrchestrationRetryMaxAttempts({}), 5);
+});
+
+test("resolveSuggestVendorsRetryMaxAttempts defaults to 5", () => {
+  assert.equal(resolveSuggestVendorsRetryMaxAttempts({}), 5);
 });
 
 test("resolveInstructionPackRetryMaxAttempts defaults to 5", () => {
