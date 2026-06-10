@@ -117,6 +117,10 @@ export async function resolveInstructionPackResponse(
       const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
         await import("./aiMockFallback.js");
       if (!isAiMockFallbackEnabled()) {
+        logWarn(
+          log,
+          `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}`
+        );
         throw new AiServiceUnavailableError(
           `Instruction pack orchestration failed${status}${code}: ${detail}${timeoutHint}`,
           { code: "orchestration_unavailable" }

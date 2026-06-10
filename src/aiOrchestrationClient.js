@@ -57,11 +57,41 @@ export class AiOrchestrationClient {
     return Boolean(this.baseUrl);
   }
 
-  async postInternal(path, body, { timeoutMs } = {}) {
+  static isRetryableOrchestrationError(error) {
+    if (!(error instanceof AiOrchestrationError)) {
+      return false;
+    }
+    if (error.code === "timeout" || error.code === "network_error") {
+      return true;
+    }
+    if (error.code === "rate_limited" || error.code === "invalid_json") {
+      return error.status === 429 || error.status === 502 || error.status === 503;
+    }
+    return [429, 502, 503].includes(error.status);
+  }
+
+  async postInternal(path, body, { timeoutMs, maxAttempts = 3 } = {}) {
     if (!this.baseUrl) {
       throw new AiOrchestrationError("AI_ORCHESTRATION_BASE_URL is not set.");
     }
 
+    let lastError;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await this._postInternalOnce(path, body, { timeoutMs });
+      } catch (error) {
+        lastError = error;
+        const retryable = AiOrchestrationClient.isRetryableOrchestrationError(error);
+        if (!retryable || attempt >= maxAttempts) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+      }
+    }
+    throw lastError;
+  }
+
+  async _postInternalOnce(path, body, { timeoutMs } = {}) {
     const effectiveTimeoutMs = timeoutMs ?? this.timeoutMs;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
@@ -98,16 +128,24 @@ export class AiOrchestrationClient {
     try {
       parsed = text ? JSON.parse(text) : {};
     } catch {
-      throw new AiOrchestrationError("AI orchestration returned invalid JSON.", {
-        status: response.status,
-        code: "invalid_json"
-      });
+      const preview = text.trim().slice(0, 120).replace(/\s+/g, " ");
+      const detail = preview ? ` Body preview: ${preview}` : "";
+      const code =
+        response.status === 429 ? "rate_limited" : "invalid_json";
+      throw new AiOrchestrationError(
+        `AI orchestration returned invalid JSON (HTTP ${response.status}).${detail}`,
+        { status: response.status, code }
+      );
     }
 
     if (!response.ok) {
+      const code =
+        response.status === 429
+          ? "rate_limited"
+          : parsed?.code || "upstream_error";
       throw new AiOrchestrationError(
         parsed?.detail || parsed?.message || `HTTP ${response.status}`,
-        { status: response.status, code: parsed?.code || "upstream_error" }
+        { status: response.status, code }
       );
     }
 

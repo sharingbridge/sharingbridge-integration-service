@@ -116,6 +116,10 @@ export async function resolveSuggestVendorsResponse(
       const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
         await import("./aiMockFallback.js");
       if (!isAiMockFallbackEnabled()) {
+        logWarn(
+          log,
+          `[suggest-vendors] orchestration failed${status}${code}: ${detail}`
+        );
         throw new AiServiceUnavailableError(
           `Suggest vendors orchestration failed${status}${code}: ${detail}`,
           { code: "orchestration_unavailable" }

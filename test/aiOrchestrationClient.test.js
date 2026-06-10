@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   AiOrchestrationClient,
+  AiOrchestrationError,
   resolveInstructionPackTimeoutMs,
   resolveSuggestVendorsTimeoutMs
 } from "../src/aiOrchestrationClient.js";
@@ -40,4 +41,39 @@ test("instructionPack client stores separate timeout budgets", () => {
   });
   assert.equal(client.timeoutMs, 15000);
   assert.equal(client.instructionPackTimeoutMs, 60000);
+});
+
+test("postInternal retries HTTP 429 with non-JSON then succeeds", async () => {
+  let calls = 0;
+  const client = new AiOrchestrationClient({
+    baseUrl: "https://ai.example.com",
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) {
+        return {
+          ok: false,
+          status: 429,
+          text: async () => "Too Many Requests"
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({ pack_id: "p1", delivery_instructions: "ok" })
+      };
+    }
+  });
+
+  const result = await client.instructionPack({ verbal_handover_notes: "" });
+  assert.equal(calls, 2);
+  assert.equal(result.pack_id, "p1");
+});
+
+test("isRetryableOrchestrationError treats 429 invalid_json as retryable", () => {
+  const error = new AiOrchestrationError("rate limited", {
+    status: 429,
+    code: "rate_limited"
+  });
+  assert.equal(AiOrchestrationClient.isRetryableOrchestrationError(error), true);
 });
