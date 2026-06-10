@@ -42,6 +42,7 @@ test("enrichDemandWindowsWithSupply computes pledge and bid gaps", () => {
   assert.equal(enriched[0].bid_portions_total, 8);
   assert.equal(enriched[0].unmet_demand_units, 6);
   assert.equal(enriched[0].supply_gap_units, 2);
+  assert.equal(enriched[0].allocation_hint, "needs_pledges");
   assert.equal(enriched[1].pledged_units_total, 0);
   assert.equal(enriched[1].unmet_demand_units, 3);
 });

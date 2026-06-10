@@ -278,6 +278,21 @@ export function createIntegrationServer({
               message: validationError
             });
           }
+          const { resolveActiveLocalityKeys } = await import("./demandBoard.js");
+          const { validateMarketplaceLocalityKey } = await import(
+            "./marketplace.js"
+          );
+          const activeKeys = await resolveActiveLocalityKeys(seekerDemandStore);
+          const localityError = validateMarketplaceLocalityKey(
+            payload.locality_key,
+            activeKeys
+          );
+          if (localityError) {
+            return sendJson(res, 400, {
+              code: "invalid_locality_key",
+              message: localityError
+            });
+          }
           const record = buildPledgeRecord(payload, {
             pledgedByUserId: auth.userId
           });
@@ -333,6 +348,21 @@ export function createIntegrationServer({
             return sendJson(res, 400, {
               code: "invalid_request",
               message: validationError
+            });
+          }
+          const { resolveActiveLocalityKeys } = await import("./demandBoard.js");
+          const { validateMarketplaceLocalityKey } = await import(
+            "./marketplace.js"
+          );
+          const activeKeys = await resolveActiveLocalityKeys(seekerDemandStore);
+          const localityError = validateMarketplaceLocalityKey(
+            payload.locality_key,
+            activeKeys
+          );
+          if (localityError) {
+            return sendJson(res, 400, {
+              code: "invalid_locality_key",
+              message: localityError
             });
           }
           const record = buildVendorBidRecord(payload, {

@@ -1,3 +1,5 @@
+import { aggregateDemandByLocality } from "./seekerDemands.js";
+
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -116,8 +118,49 @@ function sumUnitsByLocality(rows, valueKey) {
   return byKey;
 }
 
+export function activeLocalityKeysFromSeekerDemands(seekerDemandsFormatted) {
+  return aggregateDemandByLocality(seekerDemandsFormatted).map(
+    (window) => window.locality_key
+  );
+}
+
+/** Reject free-text place names that do not match a live demand bucket. */
+export function validateMarketplaceLocalityKey(localityKey, activeKeys) {
+  const trimmed = String(localityKey ?? "").trim();
+  if (!trimmed) {
+    return "locality_key is required.";
+  }
+  if (!Array.isArray(activeKeys) || activeKeys.length === 0) {
+    return "No demand buckets yet. Record seeker demand with GPS on mobile first.";
+  }
+  if (!activeKeys.includes(trimmed)) {
+    return `locality_key must match an active demand bucket. Choose one of: ${activeKeys.join(", ")}`;
+  }
+  return null;
+}
+
+export function tagMarketplaceLocalityMatch(rows, activeKeys) {
+  const set = new Set(activeKeys);
+  return rows.map((row) => ({
+    ...row,
+    matches_demand_bucket: set.has(row.locality_key)
+  }));
+}
+
+function allocationHintForWindow(window) {
+  const unmet = Number(window.unmet_demand_units) || 0;
+  const supplyGap = Number(window.supply_gap_units) || 0;
+  if (unmet > 0) {
+    return "needs_pledges";
+  }
+  if (supplyGap > 0) {
+    return "needs_vendor_bids";
+  }
+  return "balanced";
+}
+
 /**
- * Wave 2 — read-only supply/demand gap per aggregated locality bucket.
+ * Wave 2–3 — read-only supply/demand gap per aggregated locality bucket.
  * Full allocation (assign pledges to vendors) is Phase I.
  */
 export function enrichDemandWindowsWithSupply(
@@ -132,12 +175,16 @@ export function enrichDemandWindowsWithSupply(
     const pledged = pledgedByKey.get(window.locality_key) ?? 0;
     const bidPortions = bidByKey.get(window.locality_key) ?? 0;
     const demand = Number(window.meal_units_total) || 0;
-    return {
+    const enriched = {
       ...window,
       pledged_units_total: pledged,
       bid_portions_total: bidPortions,
       unmet_demand_units: Math.max(0, demand - pledged),
       supply_gap_units: Math.max(0, demand - bidPortions)
+    };
+    return {
+      ...enriched,
+      allocation_hint: allocationHintForWindow(enriched)
     };
   });
 }

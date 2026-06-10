@@ -8,7 +8,23 @@ import { LocalPreferencesRepository } from "../src/preferencesRepository.js";
 import { PreferencesStore } from "../src/preferencesStore.js";
 import { OrderIntentStore } from "../src/orderIntentStore.js";
 import { InMemoryMarketplaceStore } from "../src/inMemoryMarketplaceStore.js";
+import { InMemorySeekerDemandStore } from "../src/inMemorySeekerDemandStore.js";
+import { applyLocationToRecord, locationFromPayload } from "../src/orderIntentLocation.js";
+import { buildSeekerDemandRecord } from "../src/seekerDemands.js";
 import { mintAuthToken } from "../src/tokenService.js";
+
+function seedSeekerDemand(store, userId, localityKey) {
+  const [lat, lng] = localityKey.split(",").map(Number);
+  let record = buildSeekerDemandRecord(
+    { need_description: "test demand", meal_units: 2 },
+    { reportedByUserId: userId }
+  );
+  record = applyLocationToRecord(
+    record,
+    locationFromPayload({ location_lat: lat, location_lng: lng })
+  );
+  return store.insertForReporter(userId, record);
+}
 
 test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-marketplace-"));
@@ -20,11 +36,14 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
   const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
   await orderIntentStore.init();
   const marketplaceStore = new InMemoryMarketplaceStore();
+  const seekerDemandStore = new InMemorySeekerDemandStore();
+  await seedSeekerDemand(seekerDemandStore, "alice", "12.94,80.24");
 
   const server = createIntegrationServer({
     preferencesRepository: repo,
     orderIntentStore,
-    marketplaceStore
+    marketplaceStore,
+    seekerDemandStore
   });
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
@@ -66,4 +85,45 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
   const body = JSON.parse(await board.text());
   assert.equal(body.pledges.length, 1);
   assert.equal(body.vendor_bids.length, 1);
+  assert.equal(body.demand_windows[0].allocation_hint, "balanced");
+});
+
+test("POST /v1/pledges rejects locality_key that does not match demand bucket", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-marketplace-"));
+  t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
+
+  const store = new PreferencesStore(path.join(tempDir, "preferences.json"));
+  const repo = new LocalPreferencesRepository(store);
+  await repo.init();
+  const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
+  await orderIntentStore.init();
+  const marketplaceStore = new InMemoryMarketplaceStore();
+  const seekerDemandStore = new InMemorySeekerDemandStore();
+  await seedSeekerDemand(seekerDemandStore, "alice", "12.94,80.24");
+
+  const server = createIntegrationServer({
+    preferencesRepository: repo,
+    orderIntentStore,
+    marketplaceStore,
+    seekerDemandStore
+  });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const port = server.address().port;
+  t.after(() => server.close());
+
+  const donorToken = mintAuthToken("alice", { role: "donor" });
+  const response = await fetch(`http://127.0.0.1:${port}/v1/pledges`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${donorToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      locality_key: "Tambaram",
+      meal_units: 1
+    })
+  });
+  assert.equal(response.status, 400);
+  const body = JSON.parse(await response.text());
+  assert.equal(body.code, "invalid_locality_key");
 });
