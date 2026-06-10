@@ -108,33 +108,28 @@ export async function resolveInstructionPackResponse(
         seeker_handover_hints: upstream.seeker_handover_hints ?? null
       };
     } catch (error) {
-      const detail = error?.message || String(error);
-      const status = error?.status ? ` status=${error.status}` : "";
-      const code = error?.code ? ` code=${error.code}` : "";
+      const { formatOrchestrationFailure, orchestrationFailureHints } =
+        await import("./aiOrchestrationErrors.js");
+      const detail =
+        formatOrchestrationFailure(error, {
+          routeLabel: "instruction-pack",
+          path: "/internal/v1/llm/instruction-pack"
+        }) || error?.message || String(error);
       const timeoutHint =
         error?.code === "timeout"
           ? " (instruction-pack uses Nominatim + Gemini vision + Groq; increase AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS)"
           : "";
-      const rateLimitHint =
-        error?.code === "rate_limited"
-          ? " (Render or AI provider rate limit — wait 2 minutes, then try once; integration retries with longer backoff)"
-          : "";
+      const hint = orchestrationFailureHints(error);
       const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
         await import("./aiMockFallback.js");
       if (!isAiMockFallbackEnabled()) {
-        logWarn(
-          log,
-          `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}${rateLimitHint}`
-        );
+        logWarn(log, `${detail}${timeoutHint}${hint}`);
         throw new AiServiceUnavailableError(
-          `Instruction pack orchestration failed${status}${code}: ${detail}${timeoutHint}${rateLimitHint}`,
+          `Instruction pack ${detail}${timeoutHint}${hint}`,
           { code: "orchestration_unavailable" }
         );
       }
-      logWarn(
-        log,
-        `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}${rateLimitHint}; using fallback_error`
-      );
+      logWarn(log, `${detail}${timeoutHint}${hint}; using fallback_error`);
       const { buildInstructionPackFallback } = await import(
         "./instructionPackFallback.js"
       );

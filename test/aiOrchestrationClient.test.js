@@ -10,6 +10,10 @@ import {
   resolveSuggestVendorsRetryMaxAttempts,
   resolveSuggestVendorsTimeoutMs
 } from "../src/aiOrchestrationClient.js";
+import {
+  classifyHttpBody,
+  formatOrchestrationFailure
+} from "../src/aiOrchestrationErrors.js";
 
 test("resolveSuggestVendorsTimeoutMs defaults to 15s", () => {
   assert.equal(resolveSuggestVendorsTimeoutMs({}), 15000);
@@ -74,12 +78,65 @@ test("postInternal retries HTTP 429 with non-JSON then succeeds", async () => {
   assert.equal(result.pack_id, "p1");
 });
 
-test("isRetryableOrchestrationError treats 429 invalid_json as retryable", () => {
+test("isRetryableOrchestrationError treats 429 non_json_response as retryable", () => {
   const error = new AiOrchestrationError("rate limited", {
     status: 429,
-    code: "rate_limited"
+    code: "non_json_response"
   });
   assert.equal(AiOrchestrationClient.isRetryableOrchestrationError(error), true);
+});
+
+test("classifyHttpBody detects plain-text rate limit vs JSON", () => {
+  assert.equal(classifyHttpBody("Too Many Requests").kind, "plain_rate_limit");
+  assert.equal(classifyHttpBody('{"detail":"quota"}').kind, "json_parse_failed");
+  assert.equal(classifyHttpBody("<html>error</html>").kind, "html");
+});
+
+test("429 plain text sets orchestration_http_non_json phase", async () => {
+  const client = new AiOrchestrationClient({
+    baseUrl: "https://ai.example.com",
+    fetchImpl: async () => ({
+      ok: false,
+      status: 429,
+      headers: { get: () => "text/plain" },
+      text: async () => "Too Many Requests"
+    })
+  });
+
+  await assert.rejects(
+    () =>
+      client.postInternal(
+        "/internal/v1/llm/suggest-vendors",
+        {},
+        { maxAttempts: 1, retryDelayMs: () => 0 }
+      ),
+    (error) =>
+      error instanceof AiOrchestrationError &&
+      error.phase === "orchestration_http_non_json" &&
+      error.responseKind === "plain_rate_limit" &&
+      error.code === "rate_limited" &&
+      error.path === "/internal/v1/llm/suggest-vendors"
+  );
+});
+
+test("formatOrchestrationFailure includes phase and body_kind", () => {
+  const error = new AiOrchestrationError("ai-orchestration HTTP 429 returned non-JSON body", {
+    status: 429,
+    code: "rate_limited",
+    phase: "orchestration_http_non_json",
+    path: "/internal/v1/llm/suggest-vendors",
+    host: "ai.example.com",
+    responseKind: "plain_rate_limit",
+    bodyPreview: "Too Many Requests",
+    attempts: 5,
+    maxAttempts: 5,
+    hint: "plain-text rate limit"
+  });
+  const line = formatOrchestrationFailure(error, { routeLabel: "suggest-vendors" });
+  assert.match(line, /phase=orchestration_http_non_json/);
+  assert.match(line, /body_kind=plain_rate_limit/);
+  assert.match(line, /attempts=5\/5/);
+  assert.match(line, /body="Too Many Requests"/);
 });
 
 test("resolveOrchestrationRetryMaxAttempts defaults to 5", () => {

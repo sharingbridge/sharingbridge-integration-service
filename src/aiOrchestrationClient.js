@@ -1,3 +1,8 @@
+import {
+  classifyHttpBody,
+  orchestrationRequestTarget
+} from "./aiOrchestrationErrors.js";
+
 function envFlag(name) {
   const raw = process.env[name];
   if (!raw) return false;
@@ -69,11 +74,21 @@ export function isInstructionPackAiEnabled() {
 }
 
 export class AiOrchestrationError extends Error {
-  constructor(message, { status, code } = {}) {
+  constructor(message, options = {}) {
     super(message);
     this.name = "AiOrchestrationError";
-    this.status = status;
-    this.code = code;
+    this.status = options.status;
+    this.code = options.code;
+    this.phase = options.phase;
+    this.path = options.path;
+    this.host = options.host;
+    this.contentType = options.contentType;
+    this.responseKind = options.responseKind;
+    this.bodyPreview = options.bodyPreview;
+    this.upstreamDetail = options.upstreamDetail;
+    this.hint = options.hint;
+    this.attempts = options.attempts;
+    this.maxAttempts = options.maxAttempts;
   }
 }
 
@@ -106,7 +121,11 @@ export class AiOrchestrationClient {
     if (error.code === "timeout" || error.code === "network_error") {
       return true;
     }
-    if (error.code === "rate_limited" || error.code === "invalid_json") {
+    if (
+      error.code === "rate_limited" ||
+      error.code === "non_json_response" ||
+      error.code === "invalid_json"
+    ) {
       return error.status === 429 || error.status === 502 || error.status === 503;
     }
     return [429, 502, 503].includes(error.status);
@@ -135,14 +154,24 @@ export class AiOrchestrationClient {
         lastError = error;
         const retryable = AiOrchestrationClient.isRetryableOrchestrationError(error);
         if (!retryable || attempt >= maxAttempts) {
+          if (error instanceof AiOrchestrationError) {
+            error.attempts = attempt;
+            error.maxAttempts = maxAttempts;
+            error.path = error.path || path;
+          }
           throw error;
         }
         const waitMs = retryDelayMs(attempt);
+        const phase = error instanceof AiOrchestrationError ? error.phase : "";
+        const bodyKind =
+          error instanceof AiOrchestrationError ? error.responseKind : "";
         logWarn(
           log,
           `[orchestration] ${path} retry ${attempt}/${maxAttempts} after ` +
-            `HTTP ${error.status ?? "?"} code=${error.code ?? "unknown"} ` +
-            `wait_ms=${waitMs}`
+            `HTTP ${error.status ?? "?"} code=${error.code ?? "unknown"}` +
+            (phase ? ` phase=${phase}` : "") +
+            (bodyKind ? ` body_kind=${bodyKind}` : "") +
+            ` wait_ms=${waitMs}`
         );
         await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
@@ -152,6 +181,7 @@ export class AiOrchestrationClient {
 
   async _postInternalOnce(path, body, { timeoutMs } = {}) {
     const effectiveTimeoutMs = timeoutMs ?? this.timeoutMs;
+    const { host } = orchestrationRequestTarget(this.baseUrl, path);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
 
@@ -170,41 +200,85 @@ export class AiOrchestrationClient {
       });
     } catch (error) {
       if (error?.name === "AbortError") {
-        throw new AiOrchestrationError("AI orchestration request timed out.", {
-          code: "timeout"
-        });
+        throw new AiOrchestrationError(
+          "integration HTTP client timed out waiting for ai-orchestration",
+          {
+            code: "timeout",
+            phase: "integration_http_timeout",
+            path,
+            host,
+            hint: `timeout_ms=${effectiveTimeoutMs}`
+          }
+        );
       }
       throw new AiOrchestrationError(
-        `AI orchestration request failed: ${error?.message || error}`,
-        { code: "network_error" }
+        `integration HTTP client could not reach ai-orchestration: ${
+          error?.message || error
+        }`,
+        {
+          code: "network_error",
+          phase: "integration_http_network",
+          path,
+          host
+        }
       );
     } finally {
       clearTimeout(timer);
     }
 
+    const contentType =
+      typeof response.headers?.get === "function"
+        ? response.headers.get("content-type") || ""
+        : "";
     const text = await response.text();
     let parsed;
     try {
       parsed = text ? JSON.parse(text) : {};
     } catch {
       const preview = text.trim().slice(0, 120).replace(/\s+/g, " ");
-      const detail = preview ? ` Body preview: ${preview}` : "";
+      const { kind, hint } = classifyHttpBody(text);
       const code =
-        response.status === 429 ? "rate_limited" : "invalid_json";
+        response.status === 429 ? "rate_limited" : "non_json_response";
       throw new AiOrchestrationError(
-        `AI orchestration returned invalid JSON (HTTP ${response.status}).${detail}`,
-        { status: response.status, code }
+        `ai-orchestration HTTP ${response.status} returned non-JSON body`,
+        {
+          status: response.status,
+          code,
+          phase: "orchestration_http_non_json",
+          path,
+          host,
+          contentType: contentType.trim() || "unknown",
+          responseKind: kind,
+          bodyPreview: preview || null,
+          hint
+        }
       );
     }
 
     if (!response.ok) {
+      const upstreamDetail =
+        typeof parsed?.detail === "string"
+          ? parsed.detail
+          : typeof parsed?.message === "string"
+            ? parsed.message
+            : null;
       const code =
         response.status === 429
           ? "rate_limited"
           : parsed?.code || "upstream_error";
       throw new AiOrchestrationError(
-        parsed?.detail || parsed?.message || `HTTP ${response.status}`,
-        { status: response.status, code }
+        `ai-orchestration API error HTTP ${response.status}`,
+        {
+          status: response.status,
+          code,
+          phase: "orchestration_api",
+          path,
+          host,
+          contentType: contentType.trim() || "application/json",
+          responseKind: "json",
+          upstreamDetail,
+          hint: upstreamDetail || `FastAPI/uvicorn returned HTTP ${response.status}`
+        }
       );
     }
 

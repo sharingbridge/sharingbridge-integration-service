@@ -110,29 +110,24 @@ export async function resolveSuggestVendorsResponse(
         source
       };
     } catch (error) {
-      const detail = error?.message || String(error);
-      const status = error?.status ? ` status=${error.status}` : "";
-      const code = error?.code ? ` code=${error.code}` : "";
-      const rateLimitHint =
-        error?.code === "rate_limited"
-          ? " (Render or AI provider rate limit — wait 2 minutes, then try once; integration retries with longer backoff)"
-          : "";
+      const { formatOrchestrationFailure, orchestrationFailureHints } =
+        await import("./aiOrchestrationErrors.js");
+      const detail =
+        formatOrchestrationFailure(error, {
+          routeLabel: "suggest-vendors",
+          path: "/internal/v1/llm/suggest-vendors"
+        }) || error?.message || String(error);
+      const hint = orchestrationFailureHints(error);
       const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
         await import("./aiMockFallback.js");
       if (!isAiMockFallbackEnabled()) {
-        logWarn(
-          log,
-          `[suggest-vendors] orchestration failed${status}${code}: ${detail}${rateLimitHint}`
-        );
+        logWarn(log, `${detail}${hint}`);
         throw new AiServiceUnavailableError(
-          `Suggest vendors orchestration failed${status}${code}: ${detail}${rateLimitHint}`,
+          `Suggest vendors ${detail}${hint}`,
           { code: "orchestration_unavailable" }
         );
       }
-      logWarn(
-        log,
-        `[suggest-vendors] orchestration failed${status}${code}: ${detail}${rateLimitHint}; using mock_fallback`
-      );
+      logWarn(log, `${detail}${hint}; using mock_fallback`);
       const fallback = buildSuggestVendorsResponse(payload);
       return { ...fallback, source: "mock_fallback" };
     }
