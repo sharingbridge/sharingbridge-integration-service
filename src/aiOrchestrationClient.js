@@ -14,6 +14,29 @@ export function resolveInstructionPackTimeoutMs(env = process.env) {
   return Number(env.AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS || 60000);
 }
 
+/** instruction-pack retries when Render edge or upstream returns 429/502/503. */
+export function resolveInstructionPackRetryMaxAttempts(env = process.env) {
+  const n = Number(env.AI_ORCHESTRATION_INSTRUCTION_PACK_RETRY_MAX_ATTEMPTS || 5);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 5;
+}
+
+export function resolveOrchestrationRetryDelayMs(
+  attempt,
+  env = process.env,
+  { baseDelayMs = 8000, maxDelayMs = 45000 } = {}
+) {
+  const base = Number(env.AI_ORCHESTRATION_RETRY_BASE_DELAY_MS || baseDelayMs);
+  const max = Number(env.AI_ORCHESTRATION_RETRY_MAX_DELAY_MS || maxDelayMs);
+  const safeAttempt = Number.isFinite(attempt) && attempt > 0 ? attempt : 1;
+  const delay = Math.min(max, base * safeAttempt);
+  const jitter = Math.floor(Math.random() * 1000);
+  return delay + jitter;
+}
+
+export function defaultSuggestVendorsRetryDelayMs(attempt) {
+  return 2000 * (Number.isFinite(attempt) && attempt > 0 ? attempt : 1);
+}
+
 export function isAiOrchestrationConfigured() {
   return Boolean(process.env.AI_ORCHESTRATION_BASE_URL?.trim());
 }
@@ -70,11 +93,21 @@ export class AiOrchestrationClient {
     return [429, 502, 503].includes(error.status);
   }
 
-  async postInternal(path, body, { timeoutMs, maxAttempts = 3 } = {}) {
+  async postInternal(
+    path,
+    body,
+    {
+      timeoutMs,
+      maxAttempts = 3,
+      retryDelayMs = defaultSuggestVendorsRetryDelayMs,
+      log = console
+    } = {}
+  ) {
     if (!this.baseUrl) {
       throw new AiOrchestrationError("AI_ORCHESTRATION_BASE_URL is not set.");
     }
 
+    const { logWarn } = await import("./serviceLog.js");
     let lastError;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
@@ -85,7 +118,14 @@ export class AiOrchestrationClient {
         if (!retryable || attempt >= maxAttempts) {
           throw error;
         }
-        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+        const waitMs = retryDelayMs(attempt);
+        logWarn(
+          log,
+          `[orchestration] ${path} retry ${attempt}/${maxAttempts} after ` +
+            `HTTP ${error.status ?? "?"} code=${error.code ?? "unknown"} ` +
+            `wait_ms=${waitMs}`
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
     }
     throw lastError;
@@ -156,9 +196,12 @@ export class AiOrchestrationClient {
     return this.postInternal("/internal/v1/llm/suggest-vendors", payload);
   }
 
-  instructionPack(payload) {
+  instructionPack(payload, { log = console } = {}) {
     return this.postInternal("/internal/v1/llm/instruction-pack", payload, {
-      timeoutMs: this.instructionPackTimeoutMs
+      timeoutMs: this.instructionPackTimeoutMs,
+      maxAttempts: resolveInstructionPackRetryMaxAttempts(),
+      retryDelayMs: (attempt) => resolveOrchestrationRetryDelayMs(attempt),
+      log
     });
   }
 }

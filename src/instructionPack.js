@@ -75,7 +75,8 @@ export async function resolveInstructionPackResponse(
   if (isInstructionPackAiEnabled() && aiClient?.isConfigured()) {
     try {
       const upstream = await aiClient.instructionPack(
-        mapInstructionPackRequest(payload, { userId })
+        mapInstructionPackRequest(payload, { userId }),
+        { log }
       );
       const source = upstream.source || "orchestration";
       if (!isLiveAiSource(source)) {
@@ -114,21 +115,25 @@ export async function resolveInstructionPackResponse(
         error?.code === "timeout"
           ? " (instruction-pack uses Nominatim + Gemini vision + Groq; increase AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS)"
           : "";
+      const rateLimitHint =
+        error?.code === "rate_limited"
+          ? " (Render or AI provider rate limit — wait 2 minutes, then try once; integration retries with longer backoff)"
+          : "";
       const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
         await import("./aiMockFallback.js");
       if (!isAiMockFallbackEnabled()) {
         logWarn(
           log,
-          `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}`
+          `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}${rateLimitHint}`
         );
         throw new AiServiceUnavailableError(
-          `Instruction pack orchestration failed${status}${code}: ${detail}${timeoutHint}`,
+          `Instruction pack orchestration failed${status}${code}: ${detail}${timeoutHint}${rateLimitHint}`,
           { code: "orchestration_unavailable" }
         );
       }
       logWarn(
         log,
-        `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}; using fallback_error`
+        `[instruction-pack] orchestration failed${status}${code}: ${detail}${timeoutHint}${rateLimitHint}; using fallback_error`
       );
       const { buildInstructionPackFallback } = await import(
         "./instructionPackFallback.js"

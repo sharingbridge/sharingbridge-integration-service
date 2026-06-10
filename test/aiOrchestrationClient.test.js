@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import {
   AiOrchestrationClient,
   AiOrchestrationError,
+  resolveInstructionPackRetryMaxAttempts,
   resolveInstructionPackTimeoutMs,
+  resolveOrchestrationRetryDelayMs,
   resolveSuggestVendorsTimeoutMs
 } from "../src/aiOrchestrationClient.js";
 
@@ -76,4 +78,45 @@ test("isRetryableOrchestrationError treats 429 invalid_json as retryable", () =>
     code: "rate_limited"
   });
   assert.equal(AiOrchestrationClient.isRetryableOrchestrationError(error), true);
+});
+
+test("resolveInstructionPackRetryMaxAttempts defaults to 5", () => {
+  assert.equal(resolveInstructionPackRetryMaxAttempts({}), 5);
+});
+
+test("resolveOrchestrationRetryDelayMs grows with attempt and caps", () => {
+  const env = {
+    AI_ORCHESTRATION_RETRY_BASE_DELAY_MS: "8000",
+    AI_ORCHESTRATION_RETRY_MAX_DELAY_MS: "45000"
+  };
+  const d1 = resolveOrchestrationRetryDelayMs(1, env);
+  const d6 = resolveOrchestrationRetryDelayMs(6, env);
+  assert.ok(d1 >= 8000 && d1 < 9000);
+  assert.ok(d6 >= 45000 && d6 < 46000);
+});
+
+test("postInternal honors maxAttempts with zero retry delay", async () => {
+  let calls = 0;
+  const client = new AiOrchestrationClient({
+    baseUrl: "https://ai.example.com",
+    fetchImpl: async () => {
+      calls += 1;
+      return {
+        ok: false,
+        status: 429,
+        text: async () => "Too Many Requests"
+      };
+    }
+  });
+
+  await assert.rejects(
+    () =>
+      client.postInternal(
+        "/internal/v1/llm/instruction-pack",
+        { verbal_handover_notes: "" },
+        { maxAttempts: 5, retryDelayMs: () => 0 }
+      ),
+    (error) => error instanceof AiOrchestrationError && error.status === 429
+  );
+  assert.equal(calls, 5);
 });
