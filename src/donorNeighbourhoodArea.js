@@ -4,6 +4,10 @@ const MAX_RADIUS_M = 50_000;
 const DEFAULT_GRID_DECIMALS = 2;
 const MIN_GRID_DECIMALS = 1;
 const MAX_GRID_DECIMALS = 4;
+/** Mean km per degree latitude (WGS84 approximation). */
+const KM_PER_DEG_LAT = 111.32;
+const MIN_BUCKET_KM = 0.5;
+const MAX_BUCKET_KM = 50;
 
 /**
  * @param {string | number | undefined} raw
@@ -44,13 +48,66 @@ export function getDonorLocalityGridDecimals() {
   );
 }
 
+export function parseDonorLocalityBucketKm(raw) {
+  if (raw == null || raw === "") {
+    return null;
+  }
+  const parsed = Number(String(raw).trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return Math.min(MAX_BUCKET_KM, Math.max(MIN_BUCKET_KM, parsed));
+}
+
 /**
- * Grid key for grouping / exact locality filter (lat,lng rounded).
+ * When set, demand-board locality_key uses a km-wide grid instead of decimal rounding.
+ * Example: `5` → ~5 km cells (latitude-adjusted for longitude).
+ */
+export function getDonorLocalityBucketKm() {
+  return parseDonorLocalityBucketKm(process.env.DONOR_LOCALITY_BUCKET_KM);
+}
+
+function formatBucketCoord(value, step) {
+  const decimals = Math.min(6, Math.max(2, Math.ceil(-Math.log10(step)) + 1));
+  return value.toFixed(decimals);
+}
+
+/**
+ * Snap lat/lng to the centre of a ~bucketKm square cell for stable grouping keys.
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} bucketKm
+ */
+export function deriveLocalityKeyFromBucketKm(lat, lng, bucketKm) {
+  const latStep = bucketKm / KM_PER_DEG_LAT;
+  const lngKmPerDeg =
+    KM_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180);
+  const lngStep = bucketKm / Math.max(lngKmPerDeg, 0.001);
+  const snappedLat = Math.round(lat / latStep) * latStep;
+  const snappedLng = Math.round(lng / lngStep) * lngStep;
+  return `${formatBucketCoord(snappedLat, latStep)},${formatBucketCoord(snappedLng, lngStep)}`;
+}
+
+function deriveLocalityKeyFromGridDecimals(lat, lng, decimals) {
+  return `${lat.toFixed(decimals)},${lng.toFixed(decimals)}`;
+}
+
+/**
+ * Grid key for grouping / exact locality filter.
+ * Prefers DONOR_LOCALITY_BUCKET_KM when set; otherwise decimal grid (legacy).
  * @param {number} lat
  * @param {number} lng
  */
-export function deriveLocalityKey(lat, lng, decimals = getDonorLocalityGridDecimals()) {
-  return `${lat.toFixed(decimals)},${lng.toFixed(decimals)}`;
+export function deriveLocalityKey(lat, lng) {
+  const bucketKm = getDonorLocalityBucketKm();
+  if (bucketKm != null) {
+    return deriveLocalityKeyFromBucketKm(lat, lng, bucketKm);
+  }
+  return deriveLocalityKeyFromGridDecimals(
+    lat,
+    lng,
+    getDonorLocalityGridDecimals()
+  );
 }
 
 /**

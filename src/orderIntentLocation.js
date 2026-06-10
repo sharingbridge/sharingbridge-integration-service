@@ -1,8 +1,4 @@
-import {
-  deriveLocalityKey,
-  getDonorLocalityGridDecimals,
-  parseGeoCoord
-} from "./donorNeighbourhoodArea.js";
+import { deriveLocalityKey, parseGeoCoord } from "./donorNeighbourhoodArea.js";
 
 /**
  * @param {unknown} payload
@@ -25,8 +21,7 @@ export function locationFromPayload(payload) {
     typeof payload.locality_key === "string"
       ? payload.locality_key.trim()
       : "";
-  const localityKey =
-    suppliedKey || deriveLocalityKey(lat, lng, getDonorLocalityGridDecimals());
+  const localityKey = suppliedKey || deriveLocalityKey(lat, lng);
   return { lat, lng, label, localityKey };
 }
 

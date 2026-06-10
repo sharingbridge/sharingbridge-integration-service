@@ -40,7 +40,7 @@ services:
         value: "2"
       - key: DONOR_NEIGHBOURHOOD_RADIUS_M
         value: "5000"
-      - key: DONOR_LOCALITY_GRID_DECIMALS
-        value: "2"
+      - key: DONOR_LOCALITY_BUCKET_KM
+        value: "5"
       - key: WEB_CORS_ORIGINS
         sync: false
