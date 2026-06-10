@@ -397,7 +397,8 @@ export function createIntegrationServer({
         }
       }
       const orderIntents = await formatOrderIntentsForRole(records, auth.role, {
-        donorEmailByUserId
+        donorEmailByUserId,
+        viewerUserId: auth.userId
       });
       const payload = {
         user_id: auth.userId,

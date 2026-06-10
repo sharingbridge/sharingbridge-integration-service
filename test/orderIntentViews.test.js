@@ -9,10 +9,10 @@ import {
 
 const now = Date.parse("2026-06-02T12:00:00.000Z");
 
-function recordWithPhoto(ageMs) {
+function recordWithPhoto(ageMs, userId = "alice") {
   return {
-    order_intent_id: "oi-1",
-    user_id: "alice",
+    id: "oi-1",
+    user_id: userId,
     pack_id: "pack-1",
     status: "instructions_copied",
     created_at: new Date(now - ageMs).toISOString(),
@@ -60,4 +60,32 @@ test("formatOrderIntentCoordinator includes donor_email when known", () => {
 test("formatOrderIntentLimited omits donor_email", () => {
   const formatted = formatOrderIntentLimited(recordWithPhoto(0), now);
   assert.equal("donor_email" in formatted, false);
+});
+
+test("formatOrderIntentLimited keeps coordinates for viewer own intent", () => {
+  const formatted = formatOrderIntentLimited(
+    {
+      ...recordWithPhoto(0),
+      location_lat: 12.97,
+      location_lng: 80.22
+    },
+    now,
+    "alice"
+  );
+  assert.equal(formatted.location_lat, 12.97);
+  assert.equal(formatted.location_lng, 80.22);
+});
+
+test("formatOrderIntentLimited redacts coordinates for other donors", () => {
+  const formatted = formatOrderIntentLimited(
+    {
+      ...recordWithPhoto(0, "bob"),
+      location_lat: 12.97,
+      location_lng: 80.22
+    },
+    now,
+    "alice"
+  );
+  assert.equal(formatted.location_lat, null);
+  assert.equal(formatted.location_lng, null);
 });

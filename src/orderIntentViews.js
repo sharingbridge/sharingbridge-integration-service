@@ -19,13 +19,25 @@ export function referencePhotoWithinViewerWindow(record, nowMs = Date.now()) {
   return age >= 0 && age <= getDonorNeighbourhoodWindowMs();
 }
 
-/** Limited dashboard: no exact coordinates; photos redacted outside the window. */
-export function formatOrderIntentLimited(record, nowMs = Date.now()) {
+function isOwnIntent(record, viewerUserId) {
+  const owner = typeof record?.user_id === "string" ? record.user_id.trim() : "";
+  const viewer =
+    typeof viewerUserId === "string" ? viewerUserId.trim() : "";
+  return owner.length > 0 && viewer.length > 0 && owner === viewer;
+}
+
+/** Limited dashboard: redact others' coordinates; keep viewer's own pins. */
+export function formatOrderIntentLimited(
+  record,
+  nowMs = Date.now(),
+  viewerUserId = ""
+) {
   const base = formatOrderIntentForApi(record);
+  const keepCoords = isOwnIntent(record, viewerUserId);
   const localized = {
     ...base,
-    location_lat: null,
-    location_lng: null
+    location_lat: keepCoords ? base.location_lat : null,
+    location_lng: keepCoords ? base.location_lng : null
   };
   if (!referencePhotoWithinViewerWindow(record, nowMs)) {
     return {
@@ -62,10 +74,14 @@ export function formatOrderIntentForRole(
   role,
   options = {}
 ) {
-  const { donorEmailByUserId = {}, nowMs = Date.now() } = options;
+  const {
+    donorEmailByUserId = {},
+    nowMs = Date.now(),
+    viewerUserId = ""
+  } = options;
   return isCoordinatorApiRole(role)
     ? formatOrderIntentCoordinator(record, donorEmailByUserId, nowMs)
-    : formatOrderIntentLimited(record, nowMs);
+    : formatOrderIntentLimited(record, nowMs, viewerUserId);
 }
 
 export async function formatOrderIntentsForRole(records, role, options = {}) {

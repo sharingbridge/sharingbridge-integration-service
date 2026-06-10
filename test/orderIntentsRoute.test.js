@@ -278,6 +278,10 @@ test("donor list with near_lat near_lng includes neighbours within radius", asyn
   assert.ok(alice.distance_m <= bob.distance_m);
   assert.ok(alice.created_at);
   assert.equal(alice.delivered_at, null);
+  assert.equal(alice.location_lat, nearLat);
+  assert.equal(alice.location_lng, nearLng);
+  assert.equal(bob.location_lat, null);
+  assert.equal(bob.location_lng, null);
 });
 
 test("donor list applies since=2h and drops older intents", async (t) => {
