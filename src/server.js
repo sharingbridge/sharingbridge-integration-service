@@ -62,6 +62,7 @@ import {
   logStartupDiagnostics,
   resolveLogLevel
 } from "./serviceLog.js";
+import { normalizeIntegrationApiPath } from "./apiPathAliases.js";
 
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
 
@@ -117,6 +118,7 @@ export function createIntegrationServer({
     throw new Error("createIntegrationServer requires orderIntentStore");
   }
   return createServer(async (req, res) => {
+    req.url = normalizeIntegrationApiPath(req.url);
     applyCorsHeaders(req, res, corsConfig);
     if (handleCorsPreflight(req, res, corsConfig)) {
       return;
@@ -235,6 +237,60 @@ export function createIntegrationServer({
       return;
     }
 
+    if (
+      req.method === "GET" &&
+      (req.url === "/v1/standard-offers" ||
+        req.url.startsWith("/v1/standard-offers?"))
+    ) {
+      const auth = extractAuthFromHeaders(req.headers);
+      if (!auth) {
+        return sendJson(res, 401, {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        });
+      }
+      if (!marketplaceStore) {
+        return sendJson(res, 503, {
+          code: "marketplace_unavailable",
+          message: "Marketplace store is not configured."
+        });
+      }
+      try {
+        const requestUrl = new URL(req.url, "http://localhost");
+        const localityKey = requestUrl.searchParams.get("locality_key");
+        const latParam = requestUrl.searchParams.get("location_lat");
+        const lngParam = requestUrl.searchParams.get("location_lng");
+        let resolvedLocalityKey =
+          typeof localityKey === "string" ? localityKey.trim() : "";
+        if (!resolvedLocalityKey && latParam != null && lngParam != null) {
+          const { deriveLocalityKey } = await import(
+            "./donorNeighbourhoodArea.js"
+          );
+          const lat = Number(latParam);
+          const lng = Number(lngParam);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            resolvedLocalityKey = deriveLocalityKey(lat, lng);
+          }
+        }
+        const { formatStandardOfferForApi } = await import(
+          "./standardOffers.js"
+        );
+        const rows = await marketplaceStore.listStandardOffers({
+          localityKey: resolvedLocalityKey || null
+        });
+        return sendJson(res, 200, {
+          user_id: auth.userId,
+          locality_key: resolvedLocalityKey || null,
+          standard_offers: rows.map(formatStandardOfferForApi)
+        });
+      } catch (error) {
+        return sendJson(res, error?.status || 500, {
+          code: error?.code || "standard_offers_list_error",
+          message: error?.message || "Could not list standard offers."
+        });
+      }
+    }
+
     if (req.method === "GET" && req.url === "/v1/demand/board") {
       const auth = extractAuthFromHeaders(req.headers);
       if (!auth) {
@@ -278,24 +334,36 @@ export function createIntegrationServer({
               message: validationError
             });
           }
-          const { resolveActiveLocalityKeys } = await import("./demandBoard.js");
-          const { validateMarketplaceLocalityKey } = await import(
+          const { resolveActiveOfferBuckets } = await import("./demandBoard.js");
+          const { validateMarketplaceOfferSelection } = await import(
             "./marketplace.js"
           );
-          const activeKeys = await resolveActiveLocalityKeys(seekerDemandStore);
-          const localityError = validateMarketplaceLocalityKey(
-            payload.locality_key,
-            activeKeys
+          const activeBuckets = await resolveActiveOfferBuckets(
+            seekerDemandStore
           );
-          if (localityError) {
+          const offerError = validateMarketplaceOfferSelection(
+            payload.locality_key,
+            payload.standard_offer_id,
+            activeBuckets
+          );
+          if (offerError) {
             return sendJson(res, 400, {
-              code: "invalid_locality_key",
-              message: localityError
+              code: "invalid_offer_selection",
+              message: offerError
             });
           }
-          const record = buildPledgeRecord(payload, {
-            pledgedByUserId: auth.userId
-          });
+          const offer = await marketplaceStore.getStandardOfferById(
+            payload.standard_offer_id
+          );
+          const record = buildPledgeRecord(
+            {
+              ...payload,
+              menu_label: offer?.menu_label ?? payload.menu_label
+            },
+            {
+              pledgedByUserId: auth.userId
+            }
+          );
           const saved = await marketplaceStore.insertPledge(record);
           return sendJson(res, 201, {
             pledge: formatPledgeForApi(saved)
@@ -350,24 +418,36 @@ export function createIntegrationServer({
               message: validationError
             });
           }
-          const { resolveActiveLocalityKeys } = await import("./demandBoard.js");
-          const { validateMarketplaceLocalityKey } = await import(
+          const { resolveActiveOfferBuckets } = await import("./demandBoard.js");
+          const { validateMarketplaceOfferSelection } = await import(
             "./marketplace.js"
           );
-          const activeKeys = await resolveActiveLocalityKeys(seekerDemandStore);
-          const localityError = validateMarketplaceLocalityKey(
-            payload.locality_key,
-            activeKeys
+          const activeBuckets = await resolveActiveOfferBuckets(
+            seekerDemandStore
           );
-          if (localityError) {
+          const offerError = validateMarketplaceOfferSelection(
+            payload.locality_key,
+            payload.standard_offer_id,
+            activeBuckets
+          );
+          if (offerError) {
             return sendJson(res, 400, {
-              code: "invalid_locality_key",
-              message: localityError
+              code: "invalid_offer_selection",
+              message: offerError
             });
           }
-          const record = buildVendorBidRecord(payload, {
-            submittedByUserId: auth.userId
-          });
+          const offer = await marketplaceStore.getStandardOfferById(
+            payload.standard_offer_id
+          );
+          const record = buildVendorBidRecord(
+            {
+              ...payload,
+              menu_label: offer?.menu_label ?? payload.menu_label
+            },
+            {
+              submittedByUserId: auth.userId
+            }
+          );
           const saved = await marketplaceStore.insertVendorBid(record);
           return sendJson(res, 201, {
             vendor_bid: formatVendorBidForApi(saved)
@@ -458,12 +538,42 @@ export function createIntegrationServer({
               message: "Seeker demand store is not configured."
             });
           }
+          if (!marketplaceStore) {
+            return sendJson(res, 503, {
+              code: "marketplace_unavailable",
+              message: "Standard offers catalog is not configured."
+            });
+          }
+          const standardOffer = await marketplaceStore.getStandardOfferById(
+            payload.standard_offer_id
+          );
+          if (!standardOffer) {
+            return sendJson(res, 400, {
+              code: "invalid_standard_offer_id",
+              message:
+                "standard_offer_id not found. Choose a menu item for this area."
+            });
+          }
           const { applyLocationToRecord, locationFromPayload } =
             await import("./orderIntentLocation.js");
           let record = buildSeekerDemandRecord(payload, {
-            reportedByUserId: auth.userId
+            reportedByUserId: auth.userId,
+            standardOffer
           });
           record = applyLocationToRecord(record, locationFromPayload(payload));
+          if (!record.locality_key) {
+            return sendJson(res, 400, {
+              code: "location_required",
+              message:
+                "location_lat and location_lng are required to match the standard offer area."
+            });
+          }
+          if (standardOffer.locality_key !== record.locality_key) {
+            return sendJson(res, 400, {
+              code: "offer_locality_mismatch",
+              message: `This menu item is for area ${standardOffer.locality_key} but GPS maps to ${record.locality_key}. Pick an item for your current area bucket.`
+            });
+          }
           const saved = await seekerDemandStore.insertForReporter(
             auth.userId,
             record

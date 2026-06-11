@@ -25,6 +25,10 @@ function rowToRecord(row) {
     status: row.status,
     meal_units: Number(row.meal_units) || 1,
     need_description: String(payload.need_description ?? ""),
+    standard_offer_id: String(payload.standard_offer_id ?? "").trim() || null,
+    menu_label: String(payload.menu_label ?? payload.need_description ?? ""),
+    price_inr:
+      typeof payload.price_inr === "number" ? payload.price_inr : null,
     verbal_notes: String(payload.verbal_notes ?? ""),
     location_lat: payloadLat ?? geoLat,
     location_lng: payloadLng ?? geoLng,
@@ -46,6 +50,10 @@ function rowToRecord(row) {
 function recordToPayload(record) {
   return {
     need_description: record.need_description,
+    standard_offer_id: record.standard_offer_id ?? null,
+    menu_label: record.menu_label ?? record.need_description ?? "",
+    price_inr:
+      typeof record.price_inr === "number" ? record.price_inr : null,
     verbal_notes: record.verbal_notes ?? "",
     location_lat:
       typeof record.location_lat === "number" ? record.location_lat : null,

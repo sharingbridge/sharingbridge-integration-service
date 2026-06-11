@@ -1,5 +1,5 @@
 import { verifyAuthToken } from "./tokenService.js";
-import { normalizeRole } from "./roles.js";
+import { isInitiatorRole, normalizeRole } from "./roles.js";
 
 function readBearerToken(authorizationHeader) {
   if (typeof authorizationHeader !== "string") return null;
@@ -30,7 +30,8 @@ export function extractUserIdFromHeaders(headers) {
   return extractAuthFromHeaders(headers)?.userId ?? null;
 }
 
-export function requireDonorRole(auth) {
+/** Requires initiator capability (JWT role `initiator` or legacy `donor`). */
+export function requireInitiatorRole(auth) {
   if (!auth) {
     return {
       error: {
@@ -42,19 +43,22 @@ export function requireDonorRole(auth) {
       }
     };
   }
-  if (auth.role !== "donor") {
+  if (!isInitiatorRole(auth.role)) {
     return {
       error: {
         status: 403,
         body: {
           code: "forbidden",
-          message: "This action requires a donor account."
+          message: "This action requires an initiator account."
         }
       }
     };
   }
   return { error: null };
 }
+
+/** @deprecated Use requireInitiatorRole */
+export const requireDonorRole = requireInitiatorRole;
 
 export function requireCoordinatorRole(auth) {
   if (!auth) {
@@ -94,13 +98,13 @@ export function requireReporterRole(auth) {
       }
     };
   }
-  if (auth.role !== "donor" && auth.role !== "coordinator") {
+  if (!isInitiatorRole(auth.role) && auth.role !== "coordinator") {
     return {
       error: {
         status: 403,
         body: {
           code: "forbidden",
-          message: "This action requires a donor or coordinator account."
+          message: "This action requires an initiator or coordinator account."
         }
       }
     };

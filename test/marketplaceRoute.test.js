@@ -11,13 +11,24 @@ import { InMemoryMarketplaceStore } from "../src/inMemoryMarketplaceStore.js";
 import { InMemorySeekerDemandStore } from "../src/inMemorySeekerDemandStore.js";
 import { applyLocationToRecord, locationFromPayload } from "../src/orderIntentLocation.js";
 import { buildSeekerDemandRecord } from "../src/seekerDemands.js";
+import { PILOT_STANDARD_OFFERS } from "../src/pilotStandardOffers.js";
 import { mintAuthToken } from "../src/tokenService.js";
 
-function seedSeekerDemand(store, userId, localityKey) {
+const TEST_OFFER_ID = "so-lunch-full-legacy-grid";
+
+function pilotOffer(id) {
+  const offer = PILOT_STANDARD_OFFERS.find((row) => row.id === id);
+  if (!offer) {
+    throw new Error(`Missing pilot offer ${id}`);
+  }
+  return offer;
+}
+
+function seedSeekerDemand(store, userId, localityKey, offerId = TEST_OFFER_ID) {
   const [lat, lng] = localityKey.split(",").map(Number);
   let record = buildSeekerDemandRecord(
-    { need_description: "test demand", meal_units: 2 },
-    { reportedByUserId: userId }
+    { standard_offer_id: offerId, meal_units: 2 },
+    { reportedByUserId: userId, standardOffer: pilotOffer(offerId) }
   );
   record = applyLocationToRecord(
     record,
@@ -60,6 +71,7 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
     },
     body: JSON.stringify({
       locality_key: "12.94,80.24",
+      standard_offer_id: TEST_OFFER_ID,
       meal_units: 3
     })
   });
@@ -73,6 +85,7 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
     },
     body: JSON.stringify({
       locality_key: "12.94,80.24",
+      standard_offer_id: TEST_OFFER_ID,
       vendor_name: "A2B Kitchen",
       portions: 20
     })
@@ -85,10 +98,11 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
   const body = JSON.parse(await board.text());
   assert.equal(body.pledges.length, 1);
   assert.equal(body.vendor_bids.length, 1);
+  assert.equal(body.demand_windows[0].standard_offer_id, TEST_OFFER_ID);
   assert.equal(body.demand_windows[0].allocation_hint, "balanced");
 });
 
-test("POST /v1/pledges rejects locality_key that does not match demand bucket", async (t) => {
+test("POST /v1/pledges rejects offer line that does not match demand", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-marketplace-"));
   t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
 
@@ -120,10 +134,11 @@ test("POST /v1/pledges rejects locality_key that does not match demand bucket", 
     },
     body: JSON.stringify({
       locality_key: "Tambaram",
+      standard_offer_id: TEST_OFFER_ID,
       meal_units: 1
     })
   });
   assert.equal(response.status, 400);
   const body = JSON.parse(await response.text());
-  assert.equal(body.code, "invalid_locality_key");
+  assert.equal(body.code, "invalid_offer_selection");
 });

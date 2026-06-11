@@ -14,6 +14,8 @@ function pledgeRowToRecord(row) {
     pledged_by_user_id: row.pledged_by_user_id,
     demand_window_id: row.demand_window_id ?? "",
     locality_key: String(row.locality_key ?? ""),
+    standard_offer_id: row.standard_offer_id ?? null,
+    menu_label: String(row.menu_label ?? ""),
     meal_units: Number(row.meal_units) || 1,
     status: row.status,
     created_at: toIso(row.created_at),
@@ -27,6 +29,8 @@ function vendorBidRowToRecord(row) {
     submitted_by_user_id: row.submitted_by_user_id,
     demand_window_id: row.demand_window_id ?? "",
     locality_key: String(row.locality_key ?? ""),
+    standard_offer_id: row.standard_offer_id ?? null,
+    menu_label: String(row.menu_label ?? ""),
     vendor_name: String(row.vendor_name ?? ""),
     portions: Number(row.portions) || 1,
     notes: row.notes ?? "",
@@ -98,13 +102,14 @@ export class PostgresMarketplaceStore {
     await this.pool.query(
       `INSERT INTO meal_pledges (
          pledge_id, pledged_by_user_id, demand_window_id, locality_key,
-         meal_units, status, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         standard_offer_id, meal_units, status, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         record.id,
         record.pledged_by_user_id,
         demandWindowId,
         record.locality_key,
+        record.standard_offer_id ?? null,
         record.meal_units,
         record.status,
         record.created_at,
@@ -122,13 +127,14 @@ export class PostgresMarketplaceStore {
     await this.pool.query(
       `INSERT INTO vendor_bids (
          vendor_bid_id, submitted_by_user_id, demand_window_id, locality_key,
-         vendor_name, portions, notes, status, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         standard_offer_id, vendor_name, portions, notes, status, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         record.id,
         record.submitted_by_user_id,
         demandWindowId,
         record.locality_key,
+        record.standard_offer_id ?? null,
         record.vendor_name,
         record.portions,
         record.notes ?? "",
@@ -146,10 +152,12 @@ export class PostgresMarketplaceStore {
     }
     const capped = Math.min(Math.max(Number(limit) || 100, 1), 200);
     const result = await this.pool.query(
-      `SELECT pledge_id, pledged_by_user_id, demand_window_id, locality_key,
-              meal_units, status, created_at, updated_at
-       FROM meal_pledges
-       ORDER BY updated_at DESC
+      `SELECT p.pledge_id, p.pledged_by_user_id, p.demand_window_id, p.locality_key,
+              p.standard_offer_id, COALESCE(o.menu_label, '') AS menu_label,
+              p.meal_units, p.status, p.created_at, p.updated_at
+       FROM meal_pledges p
+       LEFT JOIN standard_offers o ON o.standard_offer_id = p.standard_offer_id
+       ORDER BY p.updated_at DESC
        LIMIT $1`,
       [capped]
     );
@@ -162,31 +170,66 @@ export class PostgresMarketplaceStore {
     }
     const capped = Math.min(Math.max(Number(limit) || 100, 1), 200);
     const result = await this.pool.query(
-      `SELECT vendor_bid_id, submitted_by_user_id, demand_window_id, locality_key,
-              vendor_name, portions, notes, status, created_at, updated_at
-       FROM vendor_bids
-       ORDER BY updated_at DESC
+      `SELECT b.vendor_bid_id, b.submitted_by_user_id, b.demand_window_id, b.locality_key,
+              b.standard_offer_id, COALESCE(o.menu_label, '') AS menu_label,
+              b.vendor_name, b.portions, b.notes, b.status, b.created_at, b.updated_at
+       FROM vendor_bids b
+       LEFT JOIN standard_offers o ON o.standard_offer_id = b.standard_offer_id
+       ORDER BY b.updated_at DESC
        LIMIT $1`,
       [capped]
     );
     return result.rows.map(vendorBidRowToRecord);
   }
 
-  async listStandardOffers() {
+  async listStandardOffers({ localityKey = null } = {}) {
     if (!this.enabled) {
       return [];
+    }
+    try {
+      const trimmed = String(localityKey ?? "").trim();
+      const result = trimmed
+        ? await this.pool.query(
+            `SELECT standard_offer_id, locality_key, menu_label, price_inr,
+                    created_at, updated_at
+             FROM standard_offers
+             WHERE locality_key = $1
+             ORDER BY menu_label ASC`,
+            [trimmed]
+          )
+        : await this.pool.query(
+            `SELECT standard_offer_id, locality_key, menu_label, price_inr,
+                    created_at, updated_at
+             FROM standard_offers
+             ORDER BY locality_key ASC, menu_label ASC`
+          );
+      return result.rows.map(standardOfferRowToRecord);
+    } catch (error) {
+      if (error?.code === "42P01") {
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  async getStandardOfferById(standardOfferId) {
+    if (!this.enabled || !isNonEmptyString(standardOfferId)) {
+      return null;
     }
     try {
       const result = await this.pool.query(
         `SELECT standard_offer_id, locality_key, menu_label, price_inr,
                 created_at, updated_at
          FROM standard_offers
-         ORDER BY locality_key ASC, menu_label ASC`
+         WHERE standard_offer_id = $1
+         LIMIT 1`,
+        [standardOfferId.trim()]
       );
-      return result.rows.map(standardOfferRowToRecord);
+      const row = result.rows[0];
+      return row ? standardOfferRowToRecord(row) : null;
     } catch (error) {
       if (error?.code === "42P01") {
-        return [];
+        return null;
       }
       throw error;
     }

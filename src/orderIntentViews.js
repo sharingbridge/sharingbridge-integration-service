@@ -63,9 +63,12 @@ export function formatOrderIntentCoordinator(
     userId && typeof donorEmailByUserId[userId] === "string"
       ? donorEmailByUserId[userId].trim()
       : "";
+  const email = donorEmail || null;
   return {
     ...base,
-    donor_email: donorEmail || null
+    /** @deprecated use initiator_email */
+    donor_email: email,
+    initiator_email: email
   };
 }
 

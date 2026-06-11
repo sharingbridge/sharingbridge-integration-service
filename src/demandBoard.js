@@ -1,25 +1,28 @@
 import {
-  aggregateDemandByLocality,
+  aggregateDemandByStandardOffer,
   formatSeekerDemandForApi
 } from "./seekerDemands.js";
+import { formatStandardOfferForApi } from "./standardOffers.js";
 
 /**
  * Phase C.1 — demand board from persisted seeker_demands (+ vendor bids later).
  */
 import {
-  activeLocalityKeysFromSeekerDemands,
+  activeOfferBucketsFromSeekerDemands,
   enrichDemandWindowsWithSupply,
   formatPledgeForApi,
   formatVendorBidForApi,
-  tagMarketplaceLocalityMatch
+  tagMarketplaceOfferMatch
 } from "./marketplace.js";
 
-export async function resolveActiveLocalityKeys(seekerDemandStore) {
+export async function resolveActiveOfferBuckets(seekerDemandStore) {
   if (!seekerDemandStore || seekerDemandStore.enabled === false) {
     return [];
   }
   const rows = await seekerDemandStore.listRecent({ limit: 100 });
-  return activeLocalityKeysFromSeekerDemands(rows.map(formatSeekerDemandForApi));
+  return activeOfferBucketsFromSeekerDemands(
+    rows.map(formatSeekerDemandForApi)
+  );
 }
 
 export async function buildDemandBoardSnapshot({
@@ -32,7 +35,7 @@ export async function buildDemandBoardSnapshot({
     : [];
   const formatted = rows.map(formatSeekerDemandForApi);
   const schemaReady = seekerDemandStore?.enabled !== false;
-  const activeLocalityKeys = activeLocalityKeysFromSeekerDemands(formatted);
+  const activeOfferBuckets = activeOfferBucketsFromSeekerDemands(formatted);
   const pledgesRaw = marketplaceStore
     ? (await marketplaceStore.listPledges({ limit: 100 })).map(formatPledgeForApi)
     : [];
@@ -41,20 +44,20 @@ export async function buildDemandBoardSnapshot({
         formatVendorBidForApi
       )
     : [];
-  const pledges = tagMarketplaceLocalityMatch(pledgesRaw, activeLocalityKeys);
-  const vendorBids = tagMarketplaceLocalityMatch(
+  const pledges = tagMarketplaceOfferMatch(pledgesRaw, activeOfferBuckets);
+  const vendorBids = tagMarketplaceOfferMatch(
     vendorBidsRaw,
-    activeLocalityKeys
+    activeOfferBuckets
   );
   const windows = enrichDemandWindowsWithSupply(
-    aggregateDemandByLocality(formatted),
+    aggregateDemandByStandardOffer(formatted),
     pledgesRaw,
     vendorBidsRaw
   );
   const orphanPledges = pledges.filter((row) => !row.matches_demand_bucket);
   const orphanVendorBids = vendorBids.filter((row) => !row.matches_demand_bucket);
   const standardOffers = marketplaceStore
-    ? await marketplaceStore.listStandardOffers()
+    ? (await marketplaceStore.listStandardOffers()).map(formatStandardOfferForApi)
     : [];
   const marketplaceLive = marketplaceStore?.enabled !== false;
 
@@ -68,7 +71,10 @@ export async function buildDemandBoardSnapshot({
       : "Run schema-seeker-demands-migration.sql in Supabase to enable seeker demand recording.",
     standard_offers: standardOffers,
     demand_windows: windows,
-    active_locality_keys: activeLocalityKeys,
+    active_offer_buckets: activeOfferBuckets,
+    active_locality_keys: [
+      ...new Set(activeOfferBuckets.map((bucket) => bucket.locality_key))
+    ],
     seeker_demands: formatted,
     pledges,
     vendor_bids: vendorBids,

@@ -1,3 +1,5 @@
+import { readEnvWithLegacy } from "./envLegacy.js";
+
 const DEFAULT_RADIUS_M = 5000;
 /** Upper bound only — prevents oversized ST_DWithin scans; no high minimum floor. */
 const MAX_RADIUS_M = 50_000;
@@ -24,10 +26,13 @@ export function parseDonorNeighbourhoodRadiusM(raw) {
   return Math.min(MAX_RADIUS_M, Math.round(parsed));
 }
 
-/** From `DONOR_NEIGHBOURHOOD_RADIUS_M` (default 5000 metres). */
+/** From `INITIATOR_NEIGHBOURHOOD_RADIUS_M` or legacy `DONOR_NEIGHBOURHOOD_RADIUS_M` (default 5000 m). */
 export function getDonorNeighbourhoodRadiusM() {
   return parseDonorNeighbourhoodRadiusM(
-    process.env.DONOR_NEIGHBOURHOOD_RADIUS_M
+    readEnvWithLegacy(
+      "INITIATOR_NEIGHBOURHOOD_RADIUS_M",
+      "DONOR_NEIGHBOURHOOD_RADIUS_M"
+    )
   );
 }
 
@@ -44,7 +49,10 @@ export function parseDonorLocalityGridDecimals(raw) {
 
 export function getDonorLocalityGridDecimals() {
   return parseDonorLocalityGridDecimals(
-    process.env.DONOR_LOCALITY_GRID_DECIMALS
+    readEnvWithLegacy(
+      "INITIATOR_LOCALITY_GRID_DECIMALS",
+      "DONOR_LOCALITY_GRID_DECIMALS"
+    )
   );
 }
 
@@ -64,7 +72,9 @@ export function parseDonorLocalityBucketKm(raw) {
  * Example: `5` → ~5 km cells (latitude-adjusted for longitude).
  */
 export function getDonorLocalityBucketKm() {
-  return parseDonorLocalityBucketKm(process.env.DONOR_LOCALITY_BUCKET_KM);
+  return parseDonorLocalityBucketKm(
+    readEnvWithLegacy("INITIATOR_LOCALITY_BUCKET_KM", "DONOR_LOCALITY_BUCKET_KM")
+  );
 }
 
 function formatBucketCoord(value, step) {

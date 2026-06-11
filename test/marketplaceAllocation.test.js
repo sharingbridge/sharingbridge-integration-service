@@ -2,16 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { enrichDemandWindowsWithSupply } from "../src/marketplace.js";
 
-test("enrichDemandWindowsWithSupply computes pledge and bid gaps", () => {
+test("enrichDemandWindowsWithSupply computes pledge and bid gaps per offer", () => {
   const windows = [
     {
+      bucket_key: "12.94,80.24::so-lunch-full-legacy-grid",
       locality_key: "12.94,80.24",
+      standard_offer_id: "so-lunch-full-legacy-grid",
+      menu_label: "Full course lunch (veg meals)",
       demand_count: 2,
       meal_units_total: 10,
       latest_at: "2026-06-10T12:00:00.000Z"
     },
     {
+      bucket_key: "unknown::legacy",
       locality_key: "unknown",
+      standard_offer_id: null,
       demand_count: 1,
       meal_units_total: 3,
       latest_at: "2026-06-10T11:00:00.000Z"
@@ -21,6 +26,7 @@ test("enrichDemandWindowsWithSupply computes pledge and bid gaps", () => {
     {
       pledge_id: "pl-1",
       locality_key: "12.94,80.24",
+      standard_offer_id: "so-lunch-full-legacy-grid",
       meal_units: 4,
       status: "pledged",
       created_at: "2026-06-10T12:01:00.000Z"
@@ -30,6 +36,7 @@ test("enrichDemandWindowsWithSupply computes pledge and bid gaps", () => {
     {
       vendor_bid_id: "vb-1",
       locality_key: "12.94,80.24",
+      standard_offer_id: "so-lunch-full-legacy-grid",
       vendor_name: "Kitchen A",
       portions: 8,
       status: "submitted",

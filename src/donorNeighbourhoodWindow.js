@@ -1,3 +1,5 @@
+import { readEnvWithLegacy } from "./envLegacy.js";
+
 const DEFAULT_HOURS = 2;
 const MIN_HOURS = 1;
 const MAX_HOURS = 72;
@@ -14,10 +16,13 @@ export function parseDonorNeighbourhoodWindowHours(raw) {
   return Math.min(MAX_HOURS, Math.max(MIN_HOURS, Math.round(parsed)));
 }
 
-/** From `DONOR_NEIGHBOURHOOD_WINDOW_HOURS` (default 2). */
+/** From `INITIATOR_NEIGHBOURHOOD_WINDOW_HOURS` or legacy `DONOR_NEIGHBOURHOOD_WINDOW_HOURS` (default 2). */
 export function getDonorNeighbourhoodWindowHours() {
   return parseDonorNeighbourhoodWindowHours(
-    process.env.DONOR_NEIGHBOURHOOD_WINDOW_HOURS
+    readEnvWithLegacy(
+      "INITIATOR_NEIGHBOURHOOD_WINDOW_HOURS",
+      "DONOR_NEIGHBOURHOOD_WINDOW_HOURS"
+    )
   );
 }
 

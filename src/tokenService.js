@@ -22,7 +22,7 @@ export function mintAuthToken(userId, options = {}) {
   const role =
     typeof options.role === "string" && options.role.trim()
       ? options.role.trim()
-      : "donor";
+      : "initiator";
   const payload = {
     sub: userId,
     role,

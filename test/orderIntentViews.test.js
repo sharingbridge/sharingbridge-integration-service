@@ -55,6 +55,7 @@ test("formatOrderIntentCoordinator includes donor_email when known", () => {
   );
   assert.equal(formatted.user_id, "alice");
   assert.equal(formatted.donor_email, "alice@example.com");
+  assert.equal(formatted.initiator_email, "alice@example.com");
 });
 
 test("formatOrderIntentLimited omits donor_email", () => {

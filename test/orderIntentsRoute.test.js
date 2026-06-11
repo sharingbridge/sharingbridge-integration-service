@@ -205,7 +205,7 @@ test("coordinator lists order intents across donors", async (t) => {
     { headers: { authorization: `Bearer ${aliceToken}` } }
   );
   const donorBody = JSON.parse(await donorList.text());
-  assert.equal(donorBody.role, "donor");
+  assert.equal(donorBody.role, "initiator");
   assert.equal(donorBody.dashboard, "limited");
   assert.equal(donorBody.since, "2h");
   assert.equal(donorBody.feed?.window_hours, 2);

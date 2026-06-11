@@ -1,4 +1,5 @@
-import { aggregateDemandByLocality } from "./seekerDemands.js";
+import { aggregateDemandByStandardOffer } from "./seekerDemands.js";
+import { offerBucketKey } from "./standardOffers.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -19,6 +20,9 @@ export function validateCreatePledgeRequest(payload) {
   if (!isNonEmptyString(payload.locality_key)) {
     return "locality_key is required.";
   }
+  if (!isNonEmptyString(payload.standard_offer_id)) {
+    return "standard_offer_id is required.";
+  }
   const units = parseUnits(payload.meal_units ?? 1);
   if (payload.meal_units != null && units == null) {
     return "meal_units must be a positive integer up to 50.";
@@ -32,6 +36,9 @@ export function validateCreateVendorBidRequest(payload) {
   }
   if (!isNonEmptyString(payload.locality_key)) {
     return "locality_key is required.";
+  }
+  if (!isNonEmptyString(payload.standard_offer_id)) {
+    return "standard_offer_id is required.";
   }
   if (!isNonEmptyString(payload.vendor_name)) {
     return "vendor_name is required.";
@@ -53,6 +60,9 @@ export function buildPledgeRecord(payload, { pledgedByUserId }) {
         ? payload.demand_window_id.trim()
         : "",
     locality_key: payload.locality_key.trim(),
+    standard_offer_id: payload.standard_offer_id.trim(),
+    menu_label:
+      typeof payload.menu_label === "string" ? payload.menu_label.trim() : "",
     meal_units: parseUnits(payload.meal_units ?? 1) ?? 1,
     status: "pledged",
     created_at: now,
@@ -70,6 +80,9 @@ export function buildVendorBidRecord(payload, { submittedByUserId }) {
         ? payload.demand_window_id.trim()
         : "",
     locality_key: payload.locality_key.trim(),
+    standard_offer_id: payload.standard_offer_id.trim(),
+    menu_label:
+      typeof payload.menu_label === "string" ? payload.menu_label.trim() : "",
     vendor_name: payload.vendor_name.trim(),
     portions: parseUnits(payload.portions, 500) ?? 1,
     notes: typeof payload.notes === "string" ? payload.notes.trim() : "",
@@ -85,6 +98,8 @@ export function formatPledgeForApi(record) {
     pledged_by_user_id: record.pledged_by_user_id,
     demand_window_id: record.demand_window_id || null,
     locality_key: record.locality_key,
+    standard_offer_id: record.standard_offer_id ?? null,
+    menu_label: record.menu_label ?? "",
     meal_units: record.meal_units,
     status: record.status,
     created_at: record.created_at,
@@ -98,6 +113,8 @@ export function formatVendorBidForApi(record) {
     submitted_by_user_id: record.submitted_by_user_id,
     demand_window_id: record.demand_window_id || null,
     locality_key: record.locality_key,
+    standard_offer_id: record.standard_offer_id ?? null,
+    menu_label: record.menu_label ?? "",
     vendor_name: record.vendor_name,
     portions: record.portions,
     notes: record.notes ?? "",
@@ -107,43 +124,71 @@ export function formatVendorBidForApi(record) {
   };
 }
 
-function sumUnitsByLocality(rows, valueKey) {
+function sumUnitsByOfferBucket(rows, valueKey) {
   const byKey = new Map();
   for (const row of rows) {
-    const key =
-      (row.locality_key && String(row.locality_key).trim()) || "unknown";
+    const key = offerBucketKey(
+      row.locality_key,
+      row.standard_offer_id || "legacy"
+    );
     const amount = Number(row[valueKey]) || 0;
     byKey.set(key, (byKey.get(key) ?? 0) + amount);
   }
   return byKey;
 }
 
-export function activeLocalityKeysFromSeekerDemands(seekerDemandsFormatted) {
-  return aggregateDemandByLocality(seekerDemandsFormatted).map(
-    (window) => window.locality_key
-  );
+export function activeOfferBucketsFromSeekerDemands(seekerDemandsFormatted) {
+  return aggregateDemandByStandardOffer(seekerDemandsFormatted).map((window) => ({
+    bucket_key: window.bucket_key,
+    locality_key: window.locality_key,
+    standard_offer_id: window.standard_offer_id,
+    menu_label: window.menu_label,
+    price_inr: window.price_inr
+  }));
 }
 
-/** Reject free-text place names that do not match a live demand bucket. */
-export function validateMarketplaceLocalityKey(localityKey, activeKeys) {
-  const trimmed = String(localityKey ?? "").trim();
-  if (!trimmed) {
+/** Reject pledges/bids that do not match a live demand line (area + standard item). */
+export function validateMarketplaceOfferSelection(
+  localityKey,
+  standardOfferId,
+  activeBuckets
+) {
+  const trimmedLocality = String(localityKey ?? "").trim();
+  const trimmedOffer = String(standardOfferId ?? "").trim();
+  if (!trimmedLocality) {
     return "locality_key is required.";
   }
-  if (!Array.isArray(activeKeys) || activeKeys.length === 0) {
-    return "No demand buckets yet. Record seeker demand with GPS on mobile first.";
+  if (!trimmedOffer) {
+    return "standard_offer_id is required.";
   }
-  if (!activeKeys.includes(trimmed)) {
-    return `locality_key must match an active demand bucket. Choose one of: ${activeKeys.join(", ")}`;
+  if (!Array.isArray(activeBuckets) || activeBuckets.length === 0) {
+    return "No demand lines yet. Record seeker demand with a standard menu item first.";
+  }
+  const match = activeBuckets.find(
+    (bucket) =>
+      bucket.locality_key === trimmedLocality &&
+      bucket.standard_offer_id === trimmedOffer
+  );
+  if (!match) {
+    const options = activeBuckets
+      .filter((bucket) => bucket.standard_offer_id)
+      .map(
+        (bucket) =>
+          `${bucket.menu_label} @ ${bucket.locality_key} (${bucket.standard_offer_id})`
+      )
+      .join("; ");
+    return `No matching demand line for that menu item. Active lines: ${options || "none with standard_offer_id"}`;
   }
   return null;
 }
 
-export function tagMarketplaceLocalityMatch(rows, activeKeys) {
-  const set = new Set(activeKeys);
+export function tagMarketplaceOfferMatch(rows, activeBuckets) {
+  const keys = new Set(activeBuckets.map((bucket) => bucket.bucket_key));
   return rows.map((row) => ({
     ...row,
-    matches_demand_bucket: set.has(row.locality_key)
+    matches_demand_bucket: keys.has(
+      offerBucketKey(row.locality_key, row.standard_offer_id || "legacy")
+    )
   }));
 }
 
@@ -168,12 +213,15 @@ export function enrichDemandWindowsWithSupply(
   pledges,
   vendorBids
 ) {
-  const pledgedByKey = sumUnitsByLocality(pledges, "meal_units");
-  const bidByKey = sumUnitsByLocality(vendorBids, "portions");
+  const pledgedByKey = sumUnitsByOfferBucket(pledges, "meal_units");
+  const bidByKey = sumUnitsByOfferBucket(vendorBids, "portions");
 
   return demandWindows.map((window) => {
-    const pledged = pledgedByKey.get(window.locality_key) ?? 0;
-    const bidPortions = bidByKey.get(window.locality_key) ?? 0;
+    const bucketKey =
+      window.bucket_key ??
+      offerBucketKey(window.locality_key, window.standard_offer_id || "legacy");
+    const pledged = pledgedByKey.get(bucketKey) ?? 0;
+    const bidPortions = bidByKey.get(bucketKey) ?? 0;
     const demand = Number(window.meal_units_total) || 0;
     const enriched = {
       ...window,
