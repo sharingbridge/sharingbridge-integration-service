@@ -1,8 +1,6 @@
 import { isCoordinatorApiRole } from "./orderIntentViews.js";
-import {
-  deriveLocalityKey,
-  parseNeighbourhoodQuery
-} from "./donorNeighbourhoodArea.js";
+import { parseNeighbourhoodQuery } from "./donorNeighbourhoodArea.js";
+import { recordMatchesLocalityFilter } from "./localityKey.js";
 import { recordHasLocation } from "./orderIntentLocation.js";
 
 const EARTH_RADIUS_M = 6_371_000;
@@ -32,7 +30,7 @@ export function intentMatchesNeighbourhood(record, scope) {
     return false;
   }
   if (scope.type === "locality") {
-    return record.locality_key === scope.localityKey;
+    return recordMatchesLocalityFilter(record.locality_key, scope.localityKey);
   }
   const distance = haversineDistanceM(
     scope.nearLat,
@@ -91,7 +89,7 @@ export function filterRecordsByNeighbourhood(
   });
 }
 
-export function formatNeighbourhoodResponse(scope) {
+export function formatNeighbourhoodResponse(scope, viewerLocalityKey = null) {
   if (!scope) {
     return null;
   }
@@ -106,6 +104,6 @@ export function formatNeighbourhoodResponse(scope) {
     near_lat: scope.nearLat,
     near_lng: scope.nearLng,
     radius_m: scope.radiusM,
-    viewer_locality_key: deriveLocalityKey(scope.nearLat, scope.nearLng)
+    viewer_locality_key: viewerLocalityKey
   };
 }

@@ -49,7 +49,7 @@ export function applyCorsHeaders(req, res, corsConfig) {
   );
   res.setHeader(
     "Access-Control-Allow-Methods",
-    "GET, POST, DELETE, OPTIONS"
+    "GET, POST, PATCH, DELETE, OPTIONS"
   );
   return true;
 }

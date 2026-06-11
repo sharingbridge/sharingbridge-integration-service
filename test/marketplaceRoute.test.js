@@ -9,12 +9,17 @@ import { PreferencesStore } from "../src/preferencesStore.js";
 import { OrderIntentStore } from "../src/orderIntentStore.js";
 import { InMemoryMarketplaceStore } from "../src/inMemoryMarketplaceStore.js";
 import { InMemorySeekerDemandStore } from "../src/inMemorySeekerDemandStore.js";
-import { applyLocationToRecord, locationFromPayload } from "../src/orderIntentLocation.js";
+import { applyLocationToRecord } from "../src/orderIntentLocation.js";
 import { buildSeekerDemandRecord } from "../src/seekerDemands.js";
-import { PILOT_STANDARD_OFFERS } from "../src/pilotStandardOffers.js";
+import {
+  PILOT_LOCALITY_POSTAL,
+  PILOT_STANDARD_OFFERS
+} from "../src/pilotStandardOffers.js";
 import { mintAuthToken } from "../src/tokenService.js";
 
-const TEST_OFFER_ID = "so-lunch-full-legacy-grid";
+const TEST_OFFER_ID = "so-lunch-full";
+const PILOT_LAT = 12.9427;
+const PILOT_LNG = 80.2379;
 
 function pilotOffer(id) {
   const offer = PILOT_STANDARD_OFFERS.find((row) => row.id === id);
@@ -24,16 +29,22 @@ function pilotOffer(id) {
   return offer;
 }
 
-function seedSeekerDemand(store, userId, localityKey, offerId = TEST_OFFER_ID) {
-  const [lat, lng] = localityKey.split(",").map(Number);
+async function seedSeekerDemand(
+  store,
+  userId,
+  localityKey = PILOT_LOCALITY_POSTAL,
+  offerId = TEST_OFFER_ID
+) {
   let record = buildSeekerDemandRecord(
     { standard_offer_id: offerId, meal_units: 2 },
     { reportedByUserId: userId, standardOffer: pilotOffer(offerId) }
   );
-  record = applyLocationToRecord(
-    record,
-    locationFromPayload({ location_lat: lat, location_lng: lng })
-  );
+  record = applyLocationToRecord(record, {
+    lat: PILOT_LAT,
+    lng: PILOT_LNG,
+    label: "",
+    localityKey
+  });
   return store.insertForReporter(userId, record);
 }
 
@@ -48,7 +59,7 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
   await orderIntentStore.init();
   const marketplaceStore = new InMemoryMarketplaceStore();
   const seekerDemandStore = new InMemorySeekerDemandStore();
-  await seedSeekerDemand(seekerDemandStore, "alice", "12.94,80.24");
+  await seedSeekerDemand(seekerDemandStore, "alice");
 
   const server = createIntegrationServer({
     preferencesRepository: repo,
@@ -70,7 +81,7 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      locality_key: "12.94,80.24",
+      locality_key: PILOT_LOCALITY_POSTAL,
       standard_offer_id: TEST_OFFER_ID,
       meal_units: 3
     })
@@ -84,7 +95,7 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      locality_key: "12.94,80.24",
+      locality_key: PILOT_LOCALITY_POSTAL,
       standard_offer_id: TEST_OFFER_ID,
       vendor_name: "A2B Kitchen",
       portions: 20
@@ -113,7 +124,7 @@ test("POST /v1/pledges rejects offer line that does not match demand", async (t)
   await orderIntentStore.init();
   const marketplaceStore = new InMemoryMarketplaceStore();
   const seekerDemandStore = new InMemorySeekerDemandStore();
-  await seedSeekerDemand(seekerDemandStore, "alice", "12.94,80.24");
+  await seedSeekerDemand(seekerDemandStore, "alice");
 
   const server = createIntegrationServer({
     preferencesRepository: repo,
@@ -133,7 +144,7 @@ test("POST /v1/pledges rejects offer line that does not match demand", async (t)
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      locality_key: "Tambaram",
+      locality_key: "IN:KA:560001",
       standard_offer_id: TEST_OFFER_ID,
       meal_units: 1
     })

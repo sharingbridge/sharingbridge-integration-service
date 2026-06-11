@@ -4,16 +4,17 @@ import {
   tagMarketplaceOfferMatch,
   validateMarketplaceOfferSelection
 } from "../src/marketplace.js";
+import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
 
 test("validateMarketplaceOfferSelection rejects unknown menu line", () => {
   const error = validateMarketplaceOfferSelection(
-    "12.94,80.24",
+    PILOT_LOCALITY_POSTAL,
     "so-unknown",
     [
       {
-        bucket_key: "12.94,80.24::so-lunch-full-legacy-grid",
-        locality_key: "12.94,80.24",
-        standard_offer_id: "so-lunch-full-legacy-grid",
+        bucket_key: `${PILOT_LOCALITY_POSTAL}::so-lunch-full`,
+        locality_key: PILOT_LOCALITY_POSTAL,
+        standard_offer_id: "so-lunch-full",
         menu_label: "Full course lunch (veg meals)",
         price_inr: 120
       }
@@ -27,22 +28,22 @@ test("tagMarketplaceOfferMatch flags orphan pledges", () => {
     [
       {
         pledge_id: "pl-1",
-        locality_key: "12.94,80.24",
-        standard_offer_id: "so-lunch-full-legacy-grid",
+        locality_key: PILOT_LOCALITY_POSTAL,
+        standard_offer_id: "so-lunch-full",
         meal_units: 1
       },
       {
         pledge_id: "pl-2",
-        locality_key: "Tambaram",
-        standard_offer_id: "so-lunch-full-legacy-grid",
+        locality_key: "IN:KA:560001",
+        standard_offer_id: "so-lunch-full",
         meal_units: 5
       }
     ],
     [
       {
-        bucket_key: "12.94,80.24::so-lunch-full-legacy-grid",
-        locality_key: "12.94,80.24",
-        standard_offer_id: "so-lunch-full-legacy-grid",
+        bucket_key: `${PILOT_LOCALITY_POSTAL}::so-lunch-full`,
+        locality_key: PILOT_LOCALITY_POSTAL,
+        standard_offer_id: "so-lunch-full",
         menu_label: "Full course lunch (veg meals)",
         price_inr: 120
       }

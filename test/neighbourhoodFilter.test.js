@@ -5,6 +5,7 @@ import {
   haversineDistanceM,
   intentMatchesNeighbourhood
 } from "../src/neighbourhoodFilter.js";
+import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
 
 test("haversineDistanceM is zero for same point", () => {
   assert.equal(haversineDistanceM(12.97, 80.22, 12.97, 80.22), 0);
@@ -48,6 +49,28 @@ test("filterRecordsByNeighbourhood near scope includes other donors without GPS"
     "donor"
   );
   assert.equal(filtered.length, 2);
+});
+
+test("intentMatchesNeighbourhood locality scope includes descendant postal keys", () => {
+  const record = {
+    location_lat: 12.94,
+    location_lng: 80.24,
+    locality_key: PILOT_LOCALITY_POSTAL
+  };
+  assert.equal(
+    intentMatchesNeighbourhood(record, {
+      type: "locality",
+      localityKey: "IN:TN"
+    }),
+    true
+  );
+  assert.equal(
+    intentMatchesNeighbourhood(record, {
+      type: "locality",
+      localityKey: "IN:KA"
+    }),
+    false
+  );
 });
 
 test("filterRecordsByNeighbourhood keeps viewer own rows without geo on intent", () => {

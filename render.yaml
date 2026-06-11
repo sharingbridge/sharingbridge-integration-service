@@ -36,11 +36,11 @@ services:
         value: "true"
       - key: LOG_LEVEL
         value: warn
-      - key: DONOR_NEIGHBOURHOOD_WINDOW_HOURS
+      - key: INITIATOR_NEIGHBOURHOOD_WINDOW_HOURS
         value: "2"
-      - key: DONOR_NEIGHBOURHOOD_RADIUS_M
+      - key: INITIATOR_NEIGHBOURHOOD_RADIUS_M
         value: "5000"
-      - key: DONOR_LOCALITY_BUCKET_KM
-        value: "5"
+      - key: NOMINATIM_USER_AGENT
+        value: SharingBridge-Integration-Service/1.0
       - key: WEB_CORS_ORIGINS
         sync: false

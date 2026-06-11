@@ -88,6 +88,7 @@ export function buildOrderIntentListSql(opts) {
     )`);
   } else if (neighbourhoodScope.type === "locality") {
     const keyParam = add(neighbourhoodScope.localityKey);
+    const prefixParam = add(`${neighbourhoodScope.localityKey}:%`);
     const viewerClause = viewer ? `user_id = ${add(viewer)}` : "FALSE";
     where.push(`(
       ${viewerClause}
@@ -95,7 +96,10 @@ export function buildOrderIntentListSql(opts) {
         location IS NOT NULL
         AND locality_key IS NOT NULL
         AND locality_key <> ''
-        AND locality_key = ${keyParam}
+        AND (
+          locality_key = ${keyParam}
+          OR locality_key LIKE ${prefixParam}
+        )
       )
     )`);
   }

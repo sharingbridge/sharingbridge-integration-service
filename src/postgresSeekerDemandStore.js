@@ -116,15 +116,18 @@ export class PostgresSeekerDemandStore {
     if (!this.enabled) {
       throw this.unavailableError();
     }
-    const withLocation = applyLocationToRecord(
-      record,
-      locationFromPayload({
-        location_lat: record.location_lat,
-        location_lng: record.location_lng,
-        location_label: record.location_label,
-        locality_key: record.locality_key
-      })
-    );
+    let withLocation = record;
+    if (!record.locality_key?.trim()) {
+      withLocation = applyLocationToRecord(
+        record,
+        await locationFromPayload({
+          location_lat: record.location_lat,
+          location_lng: record.location_lng,
+          location_label: record.location_label,
+          locality_key: record.locality_key
+        })
+      );
+    }
     const payload = recordToPayload(withLocation);
     const { localityKey, lng, lat } = geoColumnsFromRecord(withLocation);
     const lngParam = "$9";
@@ -163,17 +166,31 @@ export class PostgresSeekerDemandStore {
       params.push(reporterUserIdFilter);
       where = `WHERE reported_by_user_id = $2`;
     }
-    const result = await this.pool.query(
-      `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
+    const geoSql = `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
               locality_key, created_at, updated_at,
               ST_Y(location::geometry) AS geo_lat,
               ST_X(location::geometry) AS geo_lng
        FROM seeker_demands
        ${where}
        ORDER BY updated_at DESC
-       LIMIT $1`,
-      params
-    );
+       LIMIT $1`;
+    const plainSql = `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
+              locality_key, created_at, updated_at,
+              NULL::double precision AS geo_lat,
+              NULL::double precision AS geo_lng
+       FROM seeker_demands
+       ${where}
+       ORDER BY updated_at DESC
+       LIMIT $1`;
+    let result;
+    try {
+      result = await this.pool.query(geoSql, params);
+    } catch (error) {
+      if (error?.code !== "42883" && error?.code !== "42704") {
+        throw error;
+      }
+      result = await this.pool.query(plainSql, params);
+    }
     return result.rows.map(rowToRecord);
   }
 }

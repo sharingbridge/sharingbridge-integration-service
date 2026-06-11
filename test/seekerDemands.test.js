@@ -33,12 +33,12 @@ test("buildSeekerDemandRecord assigns id and menu from standard offer", () => {
 test("aggregateDemandByLocality sums meal units", () => {
   const rows = aggregateDemandByLocality([
     {
-      locality_key: "12.94,80.24",
+      locality_key: "IN:TN:600115",
       meal_units: 2,
       updated_at: "2026-06-06T10:00:00Z"
     },
     {
-      locality_key: "12.94,80.24",
+      locality_key: "IN:TN:600115",
       meal_units: 1,
       updated_at: "2026-06-06T11:00:00Z"
     }
@@ -51,16 +51,16 @@ test("aggregateDemandByLocality sums meal units", () => {
 test("aggregateDemandByStandardOffer groups by menu item", () => {
   const rows = aggregateDemandByStandardOffer([
     {
-      locality_key: "12.94,80.24",
-      standard_offer_id: "so-lunch-full-legacy-grid",
+      locality_key: "IN:TN:600115",
+      standard_offer_id: "so-lunch-full",
       menu_label: "Full course lunch (veg meals)",
       price_inr: 120,
       meal_units: 2,
       updated_at: "2026-06-06T10:00:00Z"
     },
     {
-      locality_key: "12.94,80.24",
-      standard_offer_id: "so-dinner-light-legacy-grid",
+      locality_key: "IN:TN:600115",
+      standard_offer_id: "so-dinner-light",
       menu_label: "Light dinner (chapati / rice portion)",
       price_inr: 55,
       meal_units: 1,

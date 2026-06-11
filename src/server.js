@@ -263,21 +263,28 @@ export function createIntegrationServer({
         let resolvedLocalityKey =
           typeof localityKey === "string" ? localityKey.trim() : "";
         if (!resolvedLocalityKey && latParam != null && lngParam != null) {
-          const { deriveLocalityKey } = await import(
-            "./donorNeighbourhoodArea.js"
+          const { derivePostalLocalityKey } = await import(
+            "./postalGeocode.js"
           );
           const lat = Number(latParam);
           const lng = Number(lngParam);
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            resolvedLocalityKey = deriveLocalityKey(lat, lng);
+            resolvedLocalityKey =
+              (await derivePostalLocalityKey(lat, lng)) ?? "";
           }
         }
         const { formatStandardOfferForApi } = await import(
           "./standardOffers.js"
         );
-        const rows = await marketplaceStore.listStandardOffers({
-          localityKey: resolvedLocalityKey || null
+        const { resolveStandardOffersForLocality } = await import(
+          "./localityKey.js"
+        );
+        const catalog = await marketplaceStore.listStandardOffers({
+          localityKey: null
         });
+        const rows = resolvedLocalityKey
+          ? resolveStandardOffersForLocality(catalog, resolvedLocalityKey)
+          : catalog;
         return sendJson(res, 200, {
           user_id: auth.userId,
           locality_key: resolvedLocalityKey || null,
@@ -299,13 +306,20 @@ export function createIntegrationServer({
           message: "A valid Bearer token is required."
         });
       }
-      const { buildDemandBoardSnapshot } = await import("./demandBoard.js");
-      const snapshot = await buildDemandBoardSnapshot({
-        role: auth.role,
-        seekerDemandStore,
-        marketplaceStore
-      });
-      return sendJson(res, 200, snapshot);
+      try {
+        const { buildDemandBoardSnapshot } = await import("./demandBoard.js");
+        const snapshot = await buildDemandBoardSnapshot({
+          role: auth.role,
+          seekerDemandStore,
+          marketplaceStore
+        });
+        return sendJson(res, 200, snapshot);
+      } catch (error) {
+        return sendJson(res, 500, {
+          code: error?.code || "demand_board_error",
+          message: error?.message || "Could not load demand board."
+        });
+      }
     }
 
     if (req.method === "POST" && req.url === "/v1/pledges") {
@@ -560,18 +574,22 @@ export function createIntegrationServer({
             reportedByUserId: auth.userId,
             standardOffer
           });
-          record = applyLocationToRecord(record, locationFromPayload(payload));
+          record = applyLocationToRecord(
+            record,
+            await locationFromPayload(payload)
+          );
           if (!record.locality_key) {
             return sendJson(res, 400, {
               code: "location_required",
               message:
-                "location_lat and location_lng are required to match the standard offer area."
+                "location_lat and location_lng are required to resolve postal area (IN:TN:PIN)."
             });
           }
-          if (standardOffer.locality_key !== record.locality_key) {
+          const { offerAppliesToLocality } = await import("./localityKey.js");
+          if (!offerAppliesToLocality(standardOffer.locality_key, record.locality_key)) {
             return sendJson(res, 400, {
               code: "offer_locality_mismatch",
-              message: `This menu item is for area ${standardOffer.locality_key} but GPS maps to ${record.locality_key}. Pick an item for your current area bucket.`
+              message: `This menu item is for ${standardOffer.locality_key} but GPS resolves to ${record.locality_key}. Pick an item for your postal area.`
             });
           }
           const saved = await seekerDemandStore.insertForReporter(
@@ -657,7 +675,18 @@ export function createIntegrationServer({
       if (sinceMs != null) {
         payload.since = formatSinceQuery(sinceMs);
       }
-      const neighbourhood = formatNeighbourhoodResponse(neighbourhoodScope);
+      let viewerLocalityKey = null;
+      if (neighbourhoodScope?.type === "near") {
+        const { derivePostalLocalityKey } = await import("./postalGeocode.js");
+        viewerLocalityKey = await derivePostalLocalityKey(
+          neighbourhoodScope.nearLat,
+          neighbourhoodScope.nearLng
+        );
+      }
+      const neighbourhood = formatNeighbourhoodResponse(
+        neighbourhoodScope,
+        viewerLocalityKey
+      );
       if (neighbourhood) {
         payload.neighbourhood = neighbourhood;
       } else if (!isCoordinatorApiRole(auth.role)) {
@@ -826,14 +855,14 @@ export function createIntegrationServer({
         let record;
         let created;
         if (existing) {
-          record = mergeLocationFromPayload(
+          record = await mergeLocationFromPayload(
             mergeOrderIntentRecord(existing, payload),
             payload
           );
           ({ created } = await orderIntentStore.upsertForUser(userId, record));
         } else {
           record = buildOrderIntentRecord(payload, { userId });
-          const location = locationFromPayload(payload);
+          const location = await locationFromPayload(payload);
           if (location) {
             record = applyLocationToRecord(record, location);
           }

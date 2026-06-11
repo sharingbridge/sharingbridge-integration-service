@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { enrichDemandWindowsWithSupply } from "../src/marketplace.js";
+import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
 
 test("enrichDemandWindowsWithSupply computes pledge and bid gaps per offer", () => {
   const windows = [
     {
-      bucket_key: "12.94,80.24::so-lunch-full-legacy-grid",
-      locality_key: "12.94,80.24",
-      standard_offer_id: "so-lunch-full-legacy-grid",
+      bucket_key: `${PILOT_LOCALITY_POSTAL}::so-lunch-full`,
+      locality_key: PILOT_LOCALITY_POSTAL,
+      standard_offer_id: "so-lunch-full",
       menu_label: "Full course lunch (veg meals)",
       demand_count: 2,
       meal_units_total: 10,
@@ -25,8 +26,8 @@ test("enrichDemandWindowsWithSupply computes pledge and bid gaps per offer", () 
   const pledges = [
     {
       pledge_id: "pl-1",
-      locality_key: "12.94,80.24",
-      standard_offer_id: "so-lunch-full-legacy-grid",
+      locality_key: PILOT_LOCALITY_POSTAL,
+      standard_offer_id: "so-lunch-full",
       meal_units: 4,
       status: "pledged",
       created_at: "2026-06-10T12:01:00.000Z"
@@ -35,8 +36,8 @@ test("enrichDemandWindowsWithSupply computes pledge and bid gaps per offer", () 
   const vendorBids = [
     {
       vendor_bid_id: "vb-1",
-      locality_key: "12.94,80.24",
-      standard_offer_id: "so-lunch-full-legacy-grid",
+      locality_key: PILOT_LOCALITY_POSTAL,
+      standard_offer_id: "so-lunch-full",
       vendor_name: "Kitchen A",
       portions: 8,
       status: "submitted",

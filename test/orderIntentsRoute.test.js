@@ -403,3 +403,58 @@ test("PATCH order-intents lets donor mark payment done", async (t) => {
   const patchBody = JSON.parse(await patch.text());
   assert.equal(patchBody.order_intent.payment_status, "paid_externally");
 });
+
+test("PATCH /v1/order-intents alias lets coordinator mark delivered", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-order-delivered-"));
+  t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
+
+  const store = new PreferencesStore(path.join(tempDir, "preferences.json"));
+  const repo = new LocalPreferencesRepository(store);
+  await repo.init();
+  const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
+  await orderIntentStore.init();
+
+  const server = createIntegrationServer({
+    preferencesRepository: repo,
+    orderIntentStore
+  });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const port = server.address().port;
+  t.after(() => server.close());
+
+  const donorToken = mintAuthToken("alice", { role: "initiator" });
+  const created = await fetch(
+    `http://127.0.0.1:${port}/v1/order-intents`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${donorToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        pack_id: "pack-deliver-1",
+        status: "instructions_copied",
+        presets_snapshot: []
+      })
+    }
+  );
+  const createdBody = JSON.parse(await created.text());
+  const intentId = createdBody.order_intent_id;
+
+  const coordToken = mintAuthToken("coord-1", { role: "coordinator" });
+  const patch = await fetch(
+    `http://127.0.0.1:${port}/v1/order-intents/${intentId}`,
+    {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${coordToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ delivery_status: "delivered" })
+    }
+  );
+  assert.equal(patch.status, 200);
+  const patchBody = JSON.parse(await patch.text());
+  assert.equal(patchBody.order_intent.delivery_status, "delivered");
+  assert.ok(patchBody.order_intent.delivered_at);
+});

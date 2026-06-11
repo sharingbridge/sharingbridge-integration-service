@@ -9,9 +9,18 @@ import { PreferencesStore } from "../src/preferencesStore.js";
 import { OrderIntentStore } from "../src/orderIntentStore.js";
 import { InMemoryMarketplaceStore } from "../src/inMemoryMarketplaceStore.js";
 import { InMemorySeekerDemandStore } from "../src/inMemorySeekerDemandStore.js";
+import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
 import { mintAuthToken } from "../src/tokenService.js";
 
-const TEST_OFFER_ID = "so-lunch-full-legacy-grid";
+const TEST_OFFER_ID = "so-lunch-full";
+
+const demandPayload = {
+  standard_offer_id: TEST_OFFER_ID,
+  meal_units: 2,
+  location_lat: 12.9427,
+  location_lng: 80.2379,
+  locality_key: PILOT_LOCALITY_POSTAL
+};
 
 test("POST /v1/seeker-demands records seeker demand", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-demand-"));
@@ -43,12 +52,7 @@ test("POST /v1/seeker-demands records seeker demand", async (t) => {
       authorization: `Bearer ${token}`,
       "content-type": "application/json"
     },
-    body: JSON.stringify({
-      standard_offer_id: TEST_OFFER_ID,
-      meal_units: 2,
-      location_lat: 12.94,
-      location_lng: 80.24
-    })
+    body: JSON.stringify(demandPayload)
   });
   const body = await response.json();
 
@@ -58,6 +62,7 @@ test("POST /v1/seeker-demands records seeker demand", async (t) => {
   assert.equal(body.seeker_demand.meal_units, 2);
   assert.equal(body.seeker_demand.standard_offer_id, TEST_OFFER_ID);
   assert.equal(body.seeker_demand.reported_by_user_id, "alice");
+  assert.equal(body.seeker_demand.locality_key, PILOT_LOCALITY_POSTAL);
 
   const board = await fetch(`http://127.0.0.1:${port}/v1/demand/board`, {
     headers: { authorization: `Bearer ${token}` }
@@ -98,17 +103,13 @@ test("POST /v1/seeker-demands allows coordinator reporter", async (t) => {
       authorization: `Bearer ${token}`,
       "content-type": "application/json"
     },
-    body: JSON.stringify({
-      standard_offer_id: TEST_OFFER_ID,
-      location_lat: 12.94,
-      location_lng: 80.24
-    })
+    body: JSON.stringify(demandPayload)
   });
 
   assert.equal(response.status, 201);
 });
 
-test("GET /v1/standard-offers filters by GPS locality", async (t) => {
+test("GET /v1/standard-offers resolves hierarchical catalog by locality_key", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-offers-"));
   t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
 
@@ -130,17 +131,22 @@ test("GET /v1/standard-offers filters by GPS locality", async (t) => {
 
   const token = mintAuthToken("alice", { role: "donor" });
   const response = await fetch(
-    `http://127.0.0.1:${port}/v1/standard-offers?location_lat=12.94&location_lng=80.24`,
+    `http://127.0.0.1:${port}/v1/standard-offers?locality_key=${encodeURIComponent(PILOT_LOCALITY_POSTAL)}`,
     { headers: { authorization: `Bearer ${token}` } }
   );
   const body = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(body.locality_key, "12.94,80.24");
-  assert.ok(body.standard_offers.length >= 1);
+  assert.equal(body.locality_key, PILOT_LOCALITY_POSTAL);
+  assert.ok(body.standard_offers.length >= 4);
   assert.ok(
-    body.standard_offers.every(
-      (offer) => offer.locality_key === "12.94,80.24"
+    body.standard_offers.some(
+      (offer) => offer.standard_offer_id === "so-lunch-full"
+    )
+  );
+  assert.ok(
+    body.standard_offers.some(
+      (offer) => offer.standard_offer_id === "so-lunch-full-state"
     )
   );
 });

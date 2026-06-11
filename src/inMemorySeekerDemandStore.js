@@ -15,7 +15,7 @@ export class InMemorySeekerDemandStore {
   async insertForReporter(reportedByUserId, record) {
     const withLocation = applyLocationToRecord(
       { ...record, reported_by_user_id: reportedByUserId },
-      locationFromPayload(record)
+      await locationFromPayload(record)
     );
     this.rows.unshift(withLocation);
     return withLocation;

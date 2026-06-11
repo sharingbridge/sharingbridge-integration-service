@@ -1,10 +1,12 @@
-import { deriveLocalityKey, parseGeoCoord } from "./donorNeighbourhoodArea.js";
+import { parseGeoCoord } from "./donorNeighbourhoodArea.js";
+import { isValidLocalityKey } from "./localityKey.js";
+import { derivePostalLocalityKey } from "./postalGeocode.js";
 
 /**
  * @param {unknown} payload
- * @returns {{ lat: number, lng: number, label: string, localityKey: string } | null}
+ * @returns {Promise<{ lat: number, lng: number, label: string, localityKey: string } | null>}
  */
-export function locationFromPayload(payload) {
+export async function locationFromPayload(payload) {
   if (!payload || typeof payload !== "object") {
     return null;
   }
@@ -21,13 +23,18 @@ export function locationFromPayload(payload) {
     typeof payload.locality_key === "string"
       ? payload.locality_key.trim()
       : "";
-  const localityKey = suppliedKey || deriveLocalityKey(lat, lng);
+  let localityKey = "";
+  if (suppliedKey && isValidLocalityKey(suppliedKey)) {
+    localityKey = suppliedKey;
+  } else {
+    localityKey = (await derivePostalLocalityKey(lat, lng)) ?? "";
+  }
   return { lat, lng, label, localityKey };
 }
 
 /**
  * @param {object} record
- * @param {ReturnType<typeof locationFromPayload>} location
+ * @param {Awaited<ReturnType<typeof locationFromPayload>>} location
  */
 export function applyLocationToRecord(record, location) {
   if (!location) {
@@ -48,8 +55,8 @@ export function applyLocationToRecord(record, location) {
   };
 }
 
-export function mergeLocationFromPayload(existing, payload) {
-  const incoming = locationFromPayload(payload);
+export async function mergeLocationFromPayload(existing, payload) {
+  const incoming = await locationFromPayload(payload);
   if (incoming) {
     return applyLocationToRecord(existing, incoming);
   }
