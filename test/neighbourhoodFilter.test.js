@@ -5,7 +5,7 @@ import {
   haversineDistanceM,
   intentMatchesNeighbourhood
 } from "../src/neighbourhoodFilter.js";
-import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
+import { FIXTURE_LOCALITY_POSTAL } from "./fixtures/standardOffersCatalog.js";
 
 test("haversineDistanceM is zero for same point", () => {
   assert.equal(haversineDistanceM(12.97, 80.22, 12.97, 80.22), 0);
@@ -55,7 +55,7 @@ test("intentMatchesNeighbourhood locality scope includes descendant postal keys"
   const record = {
     location_lat: 12.94,
     location_lng: 80.24,
-    locality_key: PILOT_LOCALITY_POSTAL
+    locality_key: FIXTURE_LOCALITY_POSTAL
   };
   assert.equal(
     intentMatchesNeighbourhood(record, {

@@ -7,9 +7,9 @@ import { createIntegrationServer } from "../src/server.js";
 import { LocalPreferencesRepository } from "../src/preferencesRepository.js";
 import { PreferencesStore } from "../src/preferencesStore.js";
 import { OrderIntentStore } from "../src/orderIntentStore.js";
-import { InMemoryMarketplaceStore } from "../src/inMemoryMarketplaceStore.js";
-import { InMemorySeekerDemandStore } from "../src/inMemorySeekerDemandStore.js";
-import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
+import { InMemoryMarketplaceStore } from "./support/inMemoryMarketplaceStore.js";
+import { InMemorySeekerDemandStore } from "./support/inMemorySeekerDemandStore.js";
+import { FIXTURE_LOCALITY_POSTAL } from "./fixtures/standardOffersCatalog.js";
 import { mintAuthToken } from "../src/tokenService.js";
 
 const TEST_OFFER_ID = "so-lunch-full";
@@ -19,7 +19,7 @@ const demandPayload = {
   meal_units: 2,
   location_lat: 12.9427,
   location_lng: 80.2379,
-  locality_key: PILOT_LOCALITY_POSTAL
+  locality_key: FIXTURE_LOCALITY_POSTAL
 };
 
 test("POST /v1/seeker-demands records seeker demand", async (t) => {
@@ -62,7 +62,7 @@ test("POST /v1/seeker-demands records seeker demand", async (t) => {
   assert.equal(body.seeker_demand.meal_units, 2);
   assert.equal(body.seeker_demand.standard_offer_id, TEST_OFFER_ID);
   assert.equal(body.seeker_demand.reported_by_user_id, "alice");
-  assert.equal(body.seeker_demand.locality_key, PILOT_LOCALITY_POSTAL);
+  assert.equal(body.seeker_demand.locality_key, FIXTURE_LOCALITY_POSTAL);
 
   const board = await fetch(`http://127.0.0.1:${port}/v1/demand/board`, {
     headers: { authorization: `Bearer ${token}` }
@@ -131,13 +131,13 @@ test("GET /v1/standard-offers resolves hierarchical catalog by locality_key", as
 
   const token = mintAuthToken("alice", { role: "donor" });
   const response = await fetch(
-    `http://127.0.0.1:${port}/v1/standard-offers?locality_key=${encodeURIComponent(PILOT_LOCALITY_POSTAL)}`,
+    `http://127.0.0.1:${port}/v1/standard-offers?locality_key=${encodeURIComponent(FIXTURE_LOCALITY_POSTAL)}`,
     { headers: { authorization: `Bearer ${token}` } }
   );
   const body = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(body.locality_key, PILOT_LOCALITY_POSTAL);
+  assert.equal(body.locality_key, FIXTURE_LOCALITY_POSTAL);
   assert.ok(body.standard_offers.length >= 4);
   assert.ok(
     body.standard_offers.some(

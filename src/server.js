@@ -1153,18 +1153,15 @@ async function buildDefaultOrderIntentStore() {
 
 async function buildDefaultMarketplaceStore() {
   const databaseUrl = process.env.DATABASE_URL?.trim();
-  if (databaseUrl) {
-    const { PostgresMarketplaceStore } = await import(
-      "./postgresMarketplaceStore.js"
-    );
-    const store = await PostgresMarketplaceStore.create(databaseUrl);
-    await store.init();
-    return store;
+  if (!databaseUrl) {
+    return null;
   }
-  const { InMemoryMarketplaceStore } = await import(
-    "./inMemoryMarketplaceStore.js"
+  const { PostgresMarketplaceStore } = await import(
+    "./postgresMarketplaceStore.js"
   );
-  return new InMemoryMarketplaceStore();
+  const store = await PostgresMarketplaceStore.create(databaseUrl);
+  await store.init();
+  return store;
 }
 
 async function buildDefaultSeekerDemandStore() {

@@ -1,9 +1,9 @@
 import {
   applyLocationToRecord,
   locationFromPayload
-} from "./orderIntentLocation.js";
+} from "../../src/orderIntentLocation.js";
 
-/** Test / local fallback when Postgres seeker_demands is not wired. */
+/** In-memory seeker demands for route tests — not used in production (Postgres only). */
 export class InMemorySeekerDemandStore {
   constructor() {
     this.enabled = true;

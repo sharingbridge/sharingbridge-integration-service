@@ -7,24 +7,24 @@ import { createIntegrationServer } from "../src/server.js";
 import { LocalPreferencesRepository } from "../src/preferencesRepository.js";
 import { PreferencesStore } from "../src/preferencesStore.js";
 import { OrderIntentStore } from "../src/orderIntentStore.js";
-import { InMemoryMarketplaceStore } from "../src/inMemoryMarketplaceStore.js";
-import { InMemorySeekerDemandStore } from "../src/inMemorySeekerDemandStore.js";
+import { InMemoryMarketplaceStore } from "./support/inMemoryMarketplaceStore.js";
+import { InMemorySeekerDemandStore } from "./support/inMemorySeekerDemandStore.js";
 import { applyLocationToRecord } from "../src/orderIntentLocation.js";
 import { buildSeekerDemandRecord } from "../src/seekerDemands.js";
 import {
-  PILOT_LOCALITY_POSTAL,
-  PILOT_STANDARD_OFFERS
-} from "../src/pilotStandardOffers.js";
+  FIXTURE_LOCALITY_POSTAL,
+  FIXTURE_STANDARD_OFFERS
+} from "./fixtures/standardOffersCatalog.js";
 import { mintAuthToken } from "../src/tokenService.js";
 
 const TEST_OFFER_ID = "so-lunch-full";
-const PILOT_LAT = 12.9427;
-const PILOT_LNG = 80.2379;
+const FIXTURE_LAT = 12.9427;
+const FIXTURE_LNG = 80.2379;
 
-function pilotOffer(id) {
-  const offer = PILOT_STANDARD_OFFERS.find((row) => row.id === id);
+function fixtureOffer(id) {
+  const offer = FIXTURE_STANDARD_OFFERS.find((row) => row.id === id);
   if (!offer) {
-    throw new Error(`Missing pilot offer ${id}`);
+    throw new Error(`Missing fixture offer ${id}`);
   }
   return offer;
 }
@@ -32,16 +32,16 @@ function pilotOffer(id) {
 async function seedSeekerDemand(
   store,
   userId,
-  localityKey = PILOT_LOCALITY_POSTAL,
+  localityKey = FIXTURE_LOCALITY_POSTAL,
   offerId = TEST_OFFER_ID
 ) {
   let record = buildSeekerDemandRecord(
     { standard_offer_id: offerId, meal_units: 2 },
-    { reportedByUserId: userId, standardOffer: pilotOffer(offerId) }
+    { reportedByUserId: userId, standardOffer: fixtureOffer(offerId) }
   );
   record = applyLocationToRecord(record, {
-    lat: PILOT_LAT,
-    lng: PILOT_LNG,
+    lat: FIXTURE_LAT,
+    lng: FIXTURE_LNG,
     label: "",
     localityKey
   });
@@ -81,7 +81,7 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      locality_key: PILOT_LOCALITY_POSTAL,
+      locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: TEST_OFFER_ID,
       meal_units: 3
     })
@@ -95,7 +95,7 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      locality_key: PILOT_LOCALITY_POSTAL,
+      locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: TEST_OFFER_ID,
       vendor_name: "A2B Kitchen",
       portions: 20

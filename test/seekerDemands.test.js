@@ -6,7 +6,7 @@ import {
   buildSeekerDemandRecord,
   validateCreateSeekerDemandRequest
 } from "../src/seekerDemands.js";
-import { PILOT_STANDARD_OFFERS } from "../src/pilotStandardOffers.js";
+import { FIXTURE_STANDARD_OFFERS } from "./fixtures/standardOffersCatalog.js";
 
 test("validateCreateSeekerDemandRequest requires standard_offer_id", () => {
   assert.equal(
@@ -16,7 +16,7 @@ test("validateCreateSeekerDemandRequest requires standard_offer_id", () => {
 });
 
 test("buildSeekerDemandRecord assigns id and menu from standard offer", () => {
-  const offer = PILOT_STANDARD_OFFERS[2];
+  const offer = FIXTURE_STANDARD_OFFERS[2];
   const record = buildSeekerDemandRecord(
     { standard_offer_id: offer.id, meal_units: 3 },
     { reportedByUserId: "u1", standardOffer: offer }

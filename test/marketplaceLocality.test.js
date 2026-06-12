@@ -4,16 +4,16 @@ import {
   tagMarketplaceOfferMatch,
   validateMarketplaceOfferSelection
 } from "../src/marketplace.js";
-import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
+import { FIXTURE_LOCALITY_POSTAL } from "./fixtures/standardOffersCatalog.js";
 
 test("validateMarketplaceOfferSelection rejects unknown menu line", () => {
   const error = validateMarketplaceOfferSelection(
-    PILOT_LOCALITY_POSTAL,
+    FIXTURE_LOCALITY_POSTAL,
     "so-unknown",
     [
       {
-        bucket_key: `${PILOT_LOCALITY_POSTAL}::so-lunch-full`,
-        locality_key: PILOT_LOCALITY_POSTAL,
+        bucket_key: `${FIXTURE_LOCALITY_POSTAL}::so-lunch-full`,
+        locality_key: FIXTURE_LOCALITY_POSTAL,
         standard_offer_id: "so-lunch-full",
         menu_label: "Full course lunch (veg meals)",
         price_inr: 120
@@ -28,7 +28,7 @@ test("tagMarketplaceOfferMatch flags orphan pledges", () => {
     [
       {
         pledge_id: "pl-1",
-        locality_key: PILOT_LOCALITY_POSTAL,
+        locality_key: FIXTURE_LOCALITY_POSTAL,
         standard_offer_id: "so-lunch-full",
         meal_units: 1
       },
@@ -41,8 +41,8 @@ test("tagMarketplaceOfferMatch flags orphan pledges", () => {
     ],
     [
       {
-        bucket_key: `${PILOT_LOCALITY_POSTAL}::so-lunch-full`,
-        locality_key: PILOT_LOCALITY_POSTAL,
+        bucket_key: `${FIXTURE_LOCALITY_POSTAL}::so-lunch-full`,
+        locality_key: FIXTURE_LOCALITY_POSTAL,
         standard_offer_id: "so-lunch-full",
         menu_label: "Full course lunch (veg meals)",
         price_inr: 120

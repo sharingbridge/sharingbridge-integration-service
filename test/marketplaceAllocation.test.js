@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { enrichDemandWindowsWithSupply } from "../src/marketplace.js";
-import { PILOT_LOCALITY_POSTAL } from "../src/pilotStandardOffers.js";
+import { FIXTURE_LOCALITY_POSTAL } from "./fixtures/standardOffersCatalog.js";
 
 test("enrichDemandWindowsWithSupply computes pledge and bid gaps per offer", () => {
   const windows = [
     {
-      bucket_key: `${PILOT_LOCALITY_POSTAL}::so-lunch-full`,
-      locality_key: PILOT_LOCALITY_POSTAL,
+      bucket_key: `${FIXTURE_LOCALITY_POSTAL}::so-lunch-full`,
+      locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: "so-lunch-full",
       menu_label: "Full course lunch (veg meals)",
       demand_count: 2,
@@ -26,7 +26,7 @@ test("enrichDemandWindowsWithSupply computes pledge and bid gaps per offer", () 
   const pledges = [
     {
       pledge_id: "pl-1",
-      locality_key: PILOT_LOCALITY_POSTAL,
+      locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: "so-lunch-full",
       meal_units: 4,
       status: "pledged",
@@ -36,7 +36,7 @@ test("enrichDemandWindowsWithSupply computes pledge and bid gaps per offer", () 
   const vendorBids = [
     {
       vendor_bid_id: "vb-1",
-      locality_key: PILOT_LOCALITY_POSTAL,
+      locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: "so-lunch-full",
       vendor_name: "Kitchen A",
       portions: 8,

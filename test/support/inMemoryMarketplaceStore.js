@@ -1,12 +1,13 @@
-import { pilotOfferRecords } from "./pilotStandardOffers.js";
+import { fixtureStandardOfferRecords } from "../fixtures/standardOffersCatalog.js";
 
-/** Test / local fallback when Postgres marketplace tables are not wired. */
+/** In-memory marketplace for route tests — not used in production (Postgres only). */
 export class InMemoryMarketplaceStore {
-  constructor({ seedPilotOffers = true } = {}) {
+  constructor({ seedStandardOffers = true } = {}) {
     this.pledges = [];
     this.vendorBids = [];
-    this.standardOffers = seedPilotOffers ? pilotOfferRecords() : [];
+    this.standardOffers = seedStandardOffers ? fixtureStandardOfferRecords() : [];
     this.enabled = true;
+    this.offersWired = true;
   }
 
   async insertPledge(record) {

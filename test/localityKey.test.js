@@ -6,7 +6,7 @@ import {
   recordMatchesLocalityFilter,
   resolveStandardOffersForLocality
 } from "../src/localityKey.js";
-import { PILOT_STANDARD_OFFERS } from "../src/pilotStandardOffers.js";
+import { FIXTURE_STANDARD_OFFERS } from "./fixtures/standardOffersCatalog.js";
 
 test("localityKeyChain returns most-specific-first ancestors", () => {
   assert.deepEqual(localityKeyChain("IN:TN:600115"), [
@@ -29,7 +29,7 @@ test("recordMatchesLocalityFilter includes descendants of filter key", () => {
 
 test("resolveStandardOffersForLocality prefers postal over state for same offer id", () => {
   const resolved = resolveStandardOffersForLocality(
-    PILOT_STANDARD_OFFERS,
+    FIXTURE_STANDARD_OFFERS,
     "IN:TN:600115"
   );
   const lunch = resolved.find((row) => row.id === "so-lunch-full");
