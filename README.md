@@ -24,7 +24,7 @@ For overall project context, see the [main SharingBridge repository](https://git
 
 ## Status
 
-**Shipped:** Donor setup, instruction-pack, order intents (`POST/GET /v1/donor-seeker/order-intents`). **Doc map:** [AGENT_HANDOFF.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/AGENT_HANDOFF.md) § Documentation map.
+**Shipped:** Donor setup, instruction-pack, order intents, seeker demands, marketplace (standard offers, pledges, demand board). Requires **`DATABASE_URL`** and **`USER_SERVICE_BASE_URL`** at `npm start`. **Doc map:** [AGENT_HANDOFF.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/AGENT_HANDOFF.md).
 
 ## Getting Started
 
@@ -55,9 +55,7 @@ Local endpoints:
 - `GET  http://localhost:8080/health`
 
 The HTTP server is exposed as a factory (`createIntegrationServer`) in
-`src/server.js`. Tests boot the same factory against a temp-directory
-`PreferencesStore` to exercise full save+fetch roundtrips and dedupe
-behavior; see `test/preferencesRoundtrip.test.js`.
+`src/server.js`. Tests inject temp `PreferencesStore` or `test/support/inMemoryMarketplaceStore.js`; production uses Postgres only. Standard-offers test catalog: `test/fixtures/standardOffersCatalog.js` (mirror of `configuration/seed-standard-offers.sql`).
 
 ### Auth context
 
@@ -84,7 +82,7 @@ See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbrid
 
 ### Donor presets
 
-Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. One-off JSON import: `npm run backfill:user-service-presets` (see `USER_SERVICE_PREFERENCES_MIGRATION.md`).
+Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. Marketplace SQL **M1–M3**: [database-setup-sequence.md](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/database-setup-sequence.md). Legacy JSON import: `npm run backfill:user-service-presets` (see `USER_SERVICE_PREFERENCES_MIGRATION.md`).
 
 ## Contributing
 

@@ -34,5 +34,5 @@ yarn-error.log*
 .cache/
 .temp/
 
-# Runtime data (file-backed PreferencesStore)
+# Legacy local data dir (pre-Postgres; tests use temp dirs)
 data/
