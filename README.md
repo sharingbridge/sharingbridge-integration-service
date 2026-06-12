@@ -82,7 +82,7 @@ See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbrid
 
 ### Donor presets
 
-Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. Marketplace SQL **M1–M3**: [database-setup-sequence.md](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/database-setup-sequence.md). Legacy JSON import: `npm run backfill:user-service-presets` (see `USER_SERVICE_PREFERENCES_MIGRATION.md`).
+Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. Marketplace SQL **M1–M3**: [database-setup-sequence.md](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/database-setup-sequence.md).
 
 ## Contributing
 

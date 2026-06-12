@@ -10,8 +10,6 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test",
-    "backfill:user-service-presets": "node scripts/backfill-presets-to-user-service.js",
-    "import:order-intents": "node scripts/import-order-intents-json.mjs",
     "db:backfill-order-intent-geo": "node scripts/backfill-order-intent-geo.mjs"
   },
   "dependencies": {
