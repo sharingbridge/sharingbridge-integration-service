@@ -33,6 +33,3 @@ yarn-error.log*
 # Misc
 .cache/
 .temp/
-
-# Legacy local data dir (pre-Postgres; tests use temp dirs)
-data/

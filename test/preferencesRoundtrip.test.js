@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createIntegrationServer } from "../src/server.js";
 import { PreferencesStore } from "../src/preferencesStore.js";
 import { LocalPreferencesRepository } from "../src/preferencesRepository.js";
+import { OrderIntentStore } from "../src/orderIntentStore.js";
 import { mintAuthToken } from "../src/tokenService.js";
 
 async function startTestServer() {
@@ -15,7 +16,12 @@ async function startTestServer() {
   const store = new PreferencesStore(dbPath);
   const repository = new LocalPreferencesRepository(store);
   await repository.init();
-  const server = createIntegrationServer({ preferencesRepository: repository });
+  const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
+  await orderIntentStore.init();
+  const server = createIntegrationServer({
+    preferencesRepository: repository,
+    orderIntentStore
+  });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address();
   const baseUrl = `http://127.0.0.1:${port}`;

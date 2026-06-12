@@ -2,11 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { applyDashboardListFilters } from "./orderIntentListFilters.js";
 
-const DEFAULT_DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = "order-intents.json";
 
 export class OrderIntentStore {
-  constructor({ dataDir = DEFAULT_DATA_DIR } = {}) {
+  constructor({ dataDir } = {}) {
+    if (!dataDir || typeof dataDir !== "string" || !dataDir.trim()) {
+      throw new Error(
+        "OrderIntentStore requires an explicit dataDir (tests use a temp directory)."
+      );
+    }
     this.dataDir = dataDir;
     this.filePath = path.join(dataDir, STORE_FILE);
     this.byUser = {};

@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 /**
- * One-time import: data/order-intents.json → PostgreSQL order_intents.
- * Usage: DATABASE_URL=... node scripts/import-order-intents-json.mjs
+ * One-time import: legacy order-intents JSON export → PostgreSQL order_intents.
+ * Usage:
+ *   DATABASE_URL=... LEGACY_ORDER_INTENTS_JSON_PATH=/path/to/order-intents.json node scripts/import-order-intents-json.mjs
  */
 import "dotenv/config";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import pg from "pg";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const filePath = path.join(__dirname, "..", "data", "order-intents.json");
+const filePath = process.env.LEGACY_ORDER_INTENTS_JSON_PATH?.trim();
 
 function recordToPayload(record) {
   return {
@@ -32,14 +30,18 @@ async function main() {
     console.error("DATABASE_URL is required.");
     process.exit(1);
   }
+  if (!filePath) {
+    console.error("LEGACY_ORDER_INTENTS_JSON_PATH is required.");
+    process.exit(1);
+  }
   let byUser = {};
   try {
     const parsed = JSON.parse(await readFile(filePath, "utf-8"));
     byUser = parsed?.byUser && typeof parsed.byUser === "object" ? parsed.byUser : {};
   } catch (error) {
     if (error.code === "ENOENT") {
-      console.warn("No order-intents.json — nothing to import.");
-      process.exit(0);
+      console.error(`File not found: ${filePath}`);
+      process.exit(1);
     }
     throw error;
   }

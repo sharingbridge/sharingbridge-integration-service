@@ -2,11 +2,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-/** Default path for unit tests that omit an explicit path (not used at `npm start`). */
-const DEFAULT_TEST_DB_PATH = "./data/preferences.json";
-
 export class PreferencesStore {
-  constructor(dbPath = DEFAULT_TEST_DB_PATH) {
+  constructor(dbPath) {
+    if (!dbPath || typeof dbPath !== "string" || !dbPath.trim()) {
+      throw new Error(
+        "PreferencesStore requires an explicit dbPath (tests use a temp file)."
+      );
+    }
     this.dbPath = dbPath;
     this.state = { byUser: {} };
   }

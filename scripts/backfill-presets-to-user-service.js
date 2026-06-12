@@ -1,5 +1,5 @@
 /**
- * One-shot migration: integration-service PreferencesStore (`data/preferences.json`)
+ * One-shot migration: legacy PreferencesStore JSON file
  * → sharingbridge-user-service donor-presets (PUT per user).
  *
  * Prerequisites:
@@ -7,10 +7,9 @@
  *   - Same AUTH_TOKEN_SECRET as user-service (script signs JWTs locally)
  *
  * Environment:
- *   USER_SERVICE_BASE_URL   default http://127.0.0.1:8081
- *   LEGACY_PREFERENCES_JSON_PATH  optional path to old data/preferences.json
- *                                 (default ./data/preferences.json)
- *   BACKFILL_DRY_RUN       if "1"/"true", log only — no PUTs
+ *   USER_SERVICE_BASE_URL          default http://127.0.0.1:8081
+ *   LEGACY_PREFERENCES_JSON_PATH   required path to old preferences.json export
+ *   BACKFILL_DRY_RUN               if "1"/"true", log only — no PUTs
  */
 
 import { readFile } from "node:fs/promises";
@@ -91,11 +90,14 @@ async function putPresets(baseUrl, userId, presets, bearerToken, dryRun) {
 
 export async function backfillPrefsToUserService({
   userServiceBaseUrl = process.env.USER_SERVICE_BASE_URL || "http://127.0.0.1:8081",
-  preferencesDbPath =
-    process.env.LEGACY_PREFERENCES_JSON_PATH?.trim() ||
-    "./data/preferences.json",
+  preferencesDbPath = process.env.LEGACY_PREFERENCES_JSON_PATH?.trim(),
   dryRun = readEnvBool("BACKFILL_DRY_RUN")
 } = {}) {
+  if (!preferencesDbPath) {
+    throw new Error(
+      "LEGACY_PREFERENCES_JSON_PATH is required (path to exported preferences.json)."
+    );
+  }
   const raw = await readFile(preferencesDbPath, "utf8");
   const parsed = JSON.parse(raw);
   const byUser = parsed?.byUser;

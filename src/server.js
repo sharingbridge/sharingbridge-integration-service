@@ -104,7 +104,7 @@ function readJsonBody(req) {
 export function createIntegrationServer({
   preferencesRepository,
   aiOrchestrationClient = new AiOrchestrationClient(),
-  orderIntentStore = new OrderIntentStore(),
+  orderIntentStore = null,
   seekerDemandStore = null,
   marketplaceStore = null,
   corsConfig = parseCorsOrigins()

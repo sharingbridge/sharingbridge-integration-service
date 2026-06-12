@@ -4,8 +4,7 @@ import { createServer } from "node:http";
 import { AiOrchestrationClient } from "../src/aiOrchestrationClient.js";
 import { createIntegrationServer } from "../src/server.js";
 import { mintAuthToken } from "../src/tokenService.js";
-import { LocalPreferencesRepository } from "../src/preferencesRepository.js";
-import { PreferencesStore } from "../src/preferencesStore.js";
+import { createTempIntegrationStores } from "./support/tempIntegrationStores.js";
 
 function startOrchestrationStub() {
   const server = createServer((req, res) => {
@@ -79,11 +78,11 @@ test("suggest-vendors uses orchestration when feature flag enabled", async (t) =
     process.env.AI_SUGGEST_VENDORS_ENABLED = prevFlag;
   });
 
-  const store = new PreferencesStore();
-  const repo = new LocalPreferencesRepository(store);
-  await repo.init();
+  const stores = await createTempIntegrationStores("sb-orch-");
+  t.after(() => stores.cleanup());
   const integration = createIntegrationServer({
-    preferencesRepository: repo,
+    preferencesRepository: stores.preferencesRepository,
+    orderIntentStore: stores.orderIntentStore,
     aiOrchestrationClient: new AiOrchestrationClient({
       baseUrl: process.env.AI_ORCHESTRATION_BASE_URL,
       fetchImpl: globalThis.fetch
@@ -124,11 +123,11 @@ test("instruction-pack returns orchestrated delivery text", async (t) => {
     process.env.AI_INSTRUCTION_PACK_ENABLED = prevFlag;
   });
 
-  const store = new PreferencesStore();
-  const repo = new LocalPreferencesRepository(store);
-  await repo.init();
+  const stores = await createTempIntegrationStores("sb-orch-");
+  t.after(() => stores.cleanup());
   const integration = createIntegrationServer({
-    preferencesRepository: repo,
+    preferencesRepository: stores.preferencesRepository,
+    orderIntentStore: stores.orderIntentStore,
     aiOrchestrationClient: new AiOrchestrationClient({
       baseUrl: process.env.AI_ORCHESTRATION_BASE_URL,
       fetchImpl: globalThis.fetch
