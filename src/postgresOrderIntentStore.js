@@ -211,16 +211,16 @@ export class PostgresOrderIntentStore {
         ? record.delivered_at.trim()
         : null;
     const { localityKey, lng, lat } = geoColumnsFromRecord(record);
-    const lngParam = "$9";
-    const latParam = "$10";
+    const lngParam = "$8";
+    const latParam = "$9";
     const result = await this.pool.query(
       `UPDATE order_intents SET
          status = $3,
          payload = $4::jsonb,
          updated_at = $5::timestamptz,
          locality_key = $6,
-         location = ${locationSqlFragment(lngParam, latParam)},
-         delivered_at = $7::timestamptz
+         delivered_at = $7::timestamptz,
+         location = ${locationSqlFragment(lngParam, latParam)}
        WHERE user_id = $1 AND order_intent_id = $2
        RETURNING order_intent_id, user_id, pack_id, status, payload, created_at, updated_at, delivered_at`,
       [
