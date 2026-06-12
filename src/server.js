@@ -298,7 +298,11 @@ export function createIntegrationServer({
       }
     }
 
-    if (req.method === "GET" && req.url === "/v1/demand/board") {
+    if (
+      req.method === "GET" &&
+      (req.url === "/v1/demand/board" ||
+        req.url.startsWith("/v1/demand/board?"))
+    ) {
       const auth = extractAuthFromHeaders(req.headers);
       if (!auth) {
         return sendJson(res, 401, {
@@ -307,12 +311,55 @@ export function createIntegrationServer({
         });
       }
       try {
+        const requestUrl = new URL(req.url, "http://localhost");
+        const sinceMs = resolveListSinceMs(
+          auth.role,
+          requestUrl.searchParams.get("since")
+        );
+        const neighbourhoodScope = isCoordinatorApiRole(auth.role)
+          ? resolveNeighbourhoodScope(auth.role, requestUrl.searchParams)
+          : null;
+        let viewerLocalityKey = null;
+        if (neighbourhoodScope?.type === "near") {
+          const { derivePostalLocalityKey } = await import("./postalGeocode.js");
+          viewerLocalityKey = await derivePostalLocalityKey(
+            neighbourhoodScope.nearLat,
+            neighbourhoodScope.nearLng
+          );
+        }
         const { buildDemandBoardSnapshot } = await import("./demandBoard.js");
         const snapshot = await buildDemandBoardSnapshot({
           role: auth.role,
           seekerDemandStore,
-          marketplaceStore
+          marketplaceStore,
+          sinceMs: isCoordinatorApiRole(auth.role) ? sinceMs : null,
+          neighbourhoodScope,
+          viewerLocalityKey
         });
+        const listMaxRows = getOrderIntentListMaxRows();
+        snapshot.since = sinceMs != null ? formatSinceQuery(sinceMs) : undefined;
+        snapshot.neighbourhood = formatNeighbourhoodResponse(
+          neighbourhoodScope,
+          viewerLocalityKey
+        );
+        snapshot.feed = {
+          since: sinceMs != null ? formatSinceQuery(sinceMs) : null,
+          window_hours: sinceMs != null ? sinceMs / 3_600_000 : null,
+          radius_m:
+            neighbourhoodScope?.type === "near"
+              ? neighbourhoodScope.radiusM
+              : null,
+          location_mode: neighbourhoodScope?.type === "locality"
+            ? "locality"
+            : neighbourhoodScope?.type === "near"
+              ? "near"
+              : "all",
+          locality_key:
+            neighbourhoodScope?.type === "locality"
+              ? neighbourhoodScope.localityKey
+              : null,
+          max_rows: listMaxRows
+        };
         return sendJson(res, 200, snapshot);
       } catch (error) {
         return sendJson(res, 500, {
@@ -692,7 +739,27 @@ export function createIntegrationServer({
       } else if (!isCoordinatorApiRole(auth.role)) {
         payload.neighbourhood = { mode: "own_only" };
       }
-      if (!isCoordinatorApiRole(auth.role) && sinceMs != null) {
+      if (isCoordinatorApiRole(auth.role)) {
+        payload.feed = {
+          since: sinceMs != null ? payload.since ?? formatSinceQuery(sinceMs) : null,
+          window_hours: sinceMs != null ? sinceMs / 3_600_000 : null,
+          radius_m:
+            neighbourhoodScope?.type === "near"
+              ? neighbourhoodScope.radiusM
+              : null,
+          location_mode:
+            neighbourhoodScope?.type === "locality"
+              ? "locality"
+              : neighbourhoodScope?.type === "near"
+                ? "near"
+                : "all",
+          locality_key:
+            neighbourhoodScope?.type === "locality"
+              ? neighbourhoodScope.localityKey
+              : null,
+          max_rows: getOrderIntentListMaxRows()
+        };
+      } else if (sinceMs != null) {
         payload.feed = {
           since: payload.since,
           window_hours: getDonorNeighbourhoodWindowHours(),
