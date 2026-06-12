@@ -55,11 +55,9 @@ function standardOfferRowToRecord(row) {
 }
 
 export class PostgresMarketplaceStore {
-  constructor(pool, { enabled = true, offersWired = true } = {}) {
+  constructor(pool, { enabled = true } = {}) {
     this.pool = pool;
     this.enabled = enabled;
-    /** False when M1 ran without M2 (no standard_offer_id on pledges/bids). */
-    this.offersWired = offersWired;
   }
 
   static async create(connectionString) {
@@ -69,60 +67,39 @@ export class PostgresMarketplaceStore {
     const pool = new pg.Pool({ connectionString: connectionString.trim() });
     const client = await pool.connect();
     let enabled = true;
-    let offersWired = true;
     try {
       await client.query("SELECT 1");
       await client.query("SELECT 1 FROM meal_pledges LIMIT 1");
       await client.query("SELECT 1 FROM vendor_bids LIMIT 1");
-      try {
-        await client.query("SELECT standard_offer_id FROM meal_pledges LIMIT 0");
-        await client.query("SELECT standard_offer_id FROM vendor_bids LIMIT 0");
-      } catch (error) {
-        if (error?.code === "42703") {
-          offersWired = false;
-        } else {
-          throw error;
-        }
-      }
+      await client.query("SELECT standard_offer_id FROM meal_pledges LIMIT 0");
+      await client.query("SELECT standard_offer_id FROM vendor_bids LIMIT 0");
+      await client.query("SELECT 1 FROM standard_offers LIMIT 1");
     } catch (error) {
       if (error?.code === "42P01") {
         enabled = false;
-        offersWired = false;
       } else {
         throw error;
       }
     } finally {
       client.release();
     }
-    return new PostgresMarketplaceStore(pool, { enabled, offersWired });
+    return new PostgresMarketplaceStore(pool, { enabled });
   }
 
   async init() {}
 
   unavailableError() {
     const error = new Error(
-      "Marketplace tables missing. Run configuration/schema-marketplace-migration.sql in Supabase."
+      "Marketplace tables (meal_pledges, vendor_bids, or standard_offers) are not present."
     );
     error.status = 503;
     error.code = "marketplace_schema_missing";
     return error;
   }
 
-  offersNotWiredError() {
-    const error = new Error(
-      "Pledges and vendor bids need standard_offer_id columns. Run configuration/schema-standard-offers-wire-migration.sql in Supabase."
-    );
-    error.status = 503;
-    error.code = "marketplace_offers_not_wired";
-    return error;
-  }
-
   async insertPledge(record) {
     if (!this.enabled) {
       throw this.unavailableError();
-    }
-    if (!this.offersWired) {
-      throw this.offersNotWiredError();
     }
     const demandWindowId = record.demand_window_id?.trim() || null;
     await this.pool.query(
@@ -148,9 +125,6 @@ export class PostgresMarketplaceStore {
   async insertVendorBid(record) {
     if (!this.enabled) {
       throw this.unavailableError();
-    }
-    if (!this.offersWired) {
-      throw this.offersNotWiredError();
     }
     const demandWindowId = record.demand_window_id?.trim() || null;
     await this.pool.query(
@@ -180,21 +154,16 @@ export class PostgresMarketplaceStore {
       return [];
     }
     const capped = Math.min(Math.max(Number(limit) || 100, 1), 200);
-    const sql = this.offersWired
-      ? `SELECT p.pledge_id, p.pledged_by_user_id, p.demand_window_id, p.locality_key,
+    const result = await this.pool.query(
+      `SELECT p.pledge_id, p.pledged_by_user_id, p.demand_window_id, p.locality_key,
               p.standard_offer_id, COALESCE(o.menu_label, '') AS menu_label,
               p.meal_units, p.status, p.created_at, p.updated_at
-         FROM meal_pledges p
-         LEFT JOIN standard_offers o ON o.standard_offer_id = p.standard_offer_id
-         ORDER BY p.updated_at DESC
-         LIMIT $1`
-      : `SELECT p.pledge_id, p.pledged_by_user_id, p.demand_window_id, p.locality_key,
-              NULL::text AS standard_offer_id, ''::text AS menu_label,
-              p.meal_units, p.status, p.created_at, p.updated_at
-         FROM meal_pledges p
-         ORDER BY p.updated_at DESC
-         LIMIT $1`;
-    const result = await this.pool.query(sql, [capped]);
+       FROM meal_pledges p
+       LEFT JOIN standard_offers o ON o.standard_offer_id = p.standard_offer_id
+       ORDER BY p.updated_at DESC
+       LIMIT $1`,
+      [capped]
+    );
     return result.rows.map(pledgeRowToRecord);
   }
 
@@ -203,21 +172,16 @@ export class PostgresMarketplaceStore {
       return [];
     }
     const capped = Math.min(Math.max(Number(limit) || 100, 1), 200);
-    const sql = this.offersWired
-      ? `SELECT b.vendor_bid_id, b.submitted_by_user_id, b.demand_window_id, b.locality_key,
+    const result = await this.pool.query(
+      `SELECT b.vendor_bid_id, b.submitted_by_user_id, b.demand_window_id, b.locality_key,
               b.standard_offer_id, COALESCE(o.menu_label, '') AS menu_label,
               b.vendor_name, b.portions, b.notes, b.status, b.created_at, b.updated_at
-         FROM vendor_bids b
-         LEFT JOIN standard_offers o ON o.standard_offer_id = b.standard_offer_id
-         ORDER BY b.updated_at DESC
-         LIMIT $1`
-      : `SELECT b.vendor_bid_id, b.submitted_by_user_id, b.demand_window_id, b.locality_key,
-              NULL::text AS standard_offer_id, ''::text AS menu_label,
-              b.vendor_name, b.portions, b.notes, b.status, b.created_at, b.updated_at
-         FROM vendor_bids b
-         ORDER BY b.updated_at DESC
-         LIMIT $1`;
-    const result = await this.pool.query(sql, [capped]);
+       FROM vendor_bids b
+       LEFT JOIN standard_offers o ON o.standard_offer_id = b.standard_offer_id
+       ORDER BY b.updated_at DESC
+       LIMIT $1`,
+      [capped]
+    );
     return result.rows.map(vendorBidRowToRecord);
   }
 
@@ -225,52 +189,38 @@ export class PostgresMarketplaceStore {
     if (!this.enabled) {
       return [];
     }
-    try {
-      const trimmed = String(localityKey ?? "").trim();
-      const result = trimmed
-        ? await this.pool.query(
-            `SELECT standard_offer_id, locality_key, menu_label, price_inr,
-                    created_at, updated_at
-             FROM standard_offers
-             WHERE locality_key = $1
-             ORDER BY menu_label ASC`,
-            [trimmed]
-          )
-        : await this.pool.query(
-            `SELECT standard_offer_id, locality_key, menu_label, price_inr,
-                    created_at, updated_at
-             FROM standard_offers
-             ORDER BY locality_key ASC, menu_label ASC`
-          );
-      return result.rows.map(standardOfferRowToRecord);
-    } catch (error) {
-      if (error?.code === "42P01") {
-        return [];
-      }
-      throw error;
-    }
+    const trimmed = String(localityKey ?? "").trim();
+    const result = trimmed
+      ? await this.pool.query(
+          `SELECT standard_offer_id, locality_key, menu_label, price_inr,
+                  created_at, updated_at
+           FROM standard_offers
+           WHERE locality_key = $1
+           ORDER BY menu_label ASC`,
+          [trimmed]
+        )
+      : await this.pool.query(
+          `SELECT standard_offer_id, locality_key, menu_label, price_inr,
+                  created_at, updated_at
+           FROM standard_offers
+           ORDER BY locality_key ASC, menu_label ASC`
+        );
+    return result.rows.map(standardOfferRowToRecord);
   }
 
   async getStandardOfferById(standardOfferId) {
     if (!this.enabled || !isNonEmptyString(standardOfferId)) {
       return null;
     }
-    try {
-      const result = await this.pool.query(
-        `SELECT standard_offer_id, locality_key, menu_label, price_inr,
-                created_at, updated_at
-         FROM standard_offers
-         WHERE standard_offer_id = $1
-         LIMIT 1`,
-        [standardOfferId.trim()]
-      );
-      const row = result.rows[0];
-      return row ? standardOfferRowToRecord(row) : null;
-    } catch (error) {
-      if (error?.code === "42P01") {
-        return null;
-      }
-      throw error;
-    }
+    const result = await this.pool.query(
+      `SELECT standard_offer_id, locality_key, menu_label, price_inr,
+              created_at, updated_at
+       FROM standard_offers
+       WHERE standard_offer_id = $1
+       LIMIT 1`,
+      [standardOfferId.trim()]
+    );
+    const row = result.rows[0];
+    return row ? standardOfferRowToRecord(row) : null;
   }
 }

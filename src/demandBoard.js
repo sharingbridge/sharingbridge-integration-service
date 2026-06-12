@@ -60,18 +60,15 @@ export async function buildDemandBoardSnapshot({
     ? (await marketplaceStore.listStandardOffers()).map(formatStandardOfferForApi)
     : [];
   const marketplaceLive = marketplaceStore?.enabled !== false;
-  const offersWired = marketplaceStore?.offersWired !== false;
 
   return {
     status: schemaReady ? "live_seeker_demands" : "schema_pending",
     role: role ?? null,
     message: schemaReady
       ? marketplaceLive
-        ? offersWired
-          ? "Seeker demands, pledges, and vendor bids persist in Postgres. Gaps and allocation hints are computed; auto-assign and donor notify are not live yet."
-          : "Seeker demands are live. Run schema-standard-offers-wire-migration.sql in Supabase to enable pledges and vendor bids on the demand board."
-        : "Seeker demands recorded. Run schema-marketplace-migration.sql for pledges and vendor bids."
-      : "Run schema-seeker-demands-migration.sql in Supabase to enable seeker demand recording.",
+        ? "Seeker demands, pledges, and vendor bids are loaded from Postgres. Allocation hints are computed; auto-assign is not live yet."
+        : "Seeker demands are available; marketplace pledge and vendor-bid tables are not configured."
+      : "Seeker demand storage is not configured.",
     standard_offers: standardOffers,
     demand_windows: windows,
     active_offer_buckets: activeOfferBuckets,

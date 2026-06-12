@@ -105,7 +105,7 @@ export class PostgresSeekerDemandStore {
 
   unavailableError() {
     const error = new Error(
-      "seeker_demands table missing. Run configuration/schema-seeker-demands-migration.sql in Supabase."
+      "seeker_demands table is not present."
     );
     error.status = 503;
     error.code = "seeker_demand_schema_missing";
