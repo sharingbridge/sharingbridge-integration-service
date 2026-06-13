@@ -373,9 +373,9 @@ export function createIntegrationServer({
       readJsonBody(req)
         .then(async (payload) => {
           const auth = extractAuthFromHeaders(req.headers);
-          const donorGuard = requireDonorRole(auth);
-          if (donorGuard.error) {
-            return sendJson(res, donorGuard.error.status, donorGuard.error.body);
+          const reporterGuard = requireReporterRole(auth);
+          if (reporterGuard.error) {
+            return sendJson(res, reporterGuard.error.status, reporterGuard.error.body);
           }
           if (!marketplaceStore) {
             return sendJson(res, 503, {
@@ -682,13 +682,14 @@ export function createIntegrationServer({
         typeof queryUserId === "string" && queryUserId.trim()
           ? queryUserId.trim()
           : null;
-      const sinceMs = resolveListSinceMs(
-        auth.role,
-        requestUrl.searchParams.get("since")
-      );
       const neighbourhoodScope = resolveNeighbourhoodScope(
         auth.role,
         requestUrl.searchParams
+      );
+      const sinceMs = resolveListSinceMs(
+        auth.role,
+        requestUrl.searchParams.get("since"),
+        { neighbourhoodMode: neighbourhoodScope?.type ?? "own_only" }
       );
       const records = await listOrderIntentsForDashboard(orderIntentStore, {
         userIdFilter: filter,

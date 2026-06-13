@@ -113,6 +113,45 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
   assert.equal(body.demand_windows[0].allocation_hint, "balanced");
 });
 
+test("POST /v1/pledges allows coordinator reporter", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-marketplace-"));
+  t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
+
+  const store = new PreferencesStore(path.join(tempDir, "preferences.json"));
+  const repo = new LocalPreferencesRepository(store);
+  await repo.init();
+  const orderIntentStore = new OrderIntentStore({ dataDir: tempDir });
+  await orderIntentStore.init();
+  const marketplaceStore = new InMemoryMarketplaceStore();
+  const seekerDemandStore = new InMemorySeekerDemandStore();
+  await seedSeekerDemand(seekerDemandStore, "alice");
+
+  const server = createIntegrationServer({
+    preferencesRepository: repo,
+    orderIntentStore,
+    marketplaceStore,
+    seekerDemandStore
+  });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const port = server.address().port;
+  t.after(() => server.close());
+
+  const coordToken = mintAuthToken("coord-1", { role: "coordinator" });
+  const pledge = await fetch(`http://127.0.0.1:${port}/v1/pledges`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${coordToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      locality_key: FIXTURE_LOCALITY_POSTAL,
+      standard_offer_id: TEST_OFFER_ID,
+      meal_units: 2
+    })
+  });
+  assert.equal(pledge.status, 201);
+});
+
 test("POST /v1/pledges rejects offer line that does not match demand", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-marketplace-"));
   t.after(() => fs.rm(tempDir, { recursive: true, force: true }));

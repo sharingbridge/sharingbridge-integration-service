@@ -5,6 +5,7 @@ import {
   filterRecordsSince,
   formatSinceQuery,
   getDonorListSinceMs,
+  getInitiatorHistorySinceMs,
   parseSinceQuery,
   resolveListSinceMs
 } from "../src/sinceFilter.js";
@@ -23,8 +24,13 @@ test("formatSinceQuery renders hour windows", () => {
 
 test("resolveListSinceMs caps donor to default window", () => {
   const windowMs = getDonorNeighbourhoodWindowMs();
-  assert.equal(resolveListSinceMs("donor", null), windowMs);
-  assert.equal(resolveListSinceMs("donor", "7d"), windowMs);
+  const historyMs = getInitiatorHistorySinceMs();
+  assert.equal(resolveListSinceMs("donor", null), historyMs);
+  assert.equal(resolveListSinceMs("donor", "7d"), historyMs);
+  assert.equal(
+    resolveListSinceMs("donor", "7d", { neighbourhoodMode: "near" }),
+    windowMs
+  );
   assert.equal(resolveListSinceMs("coordinator", null), null);
   assert.equal(resolveListSinceMs("coordinator", "2h"), 7_200_000);
 });

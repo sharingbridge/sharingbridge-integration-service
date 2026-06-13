@@ -11,6 +11,11 @@ export function getDonorListSinceMs() {
   return getDonorNeighbourhoodWindowMs();
 }
 
+/** Own-initiation history on mobile / initiator dashboard (no neighbourhood scope). */
+export function getInitiatorHistorySinceMs() {
+  return 7 * 86_400_000;
+}
+
 export function intentActivityMs(record) {
   const raw = record.updated_at || record.created_at;
   const ms = Date.parse(raw || "");
@@ -49,15 +54,21 @@ export function formatSinceQuery(sinceMs) {
 }
 
 /**
- * Donor JWT always gets at most the default neighbourhood window (2h).
+ * Donor JWT: neighbourhood feeds cap at the default window (2h); own-history
+ * lists without near/locality scope may reach [getInitiatorHistorySinceMs].
  * Coordinators may pass `since` optionally; omit for full history.
  */
-export function resolveListSinceMs(role, querySince) {
+export function resolveListSinceMs(role, querySince, options = {}) {
   const parsed = parseSinceQuery(querySince);
   if (isCoordinatorApiRole(role)) {
     return parsed;
   }
-  const maxMs = getDonorListSinceMs();
+  const neighbourhoodActive =
+    options.neighbourhoodMode === "near" ||
+    options.neighbourhoodMode === "locality";
+  const maxMs = neighbourhoodActive
+    ? getDonorListSinceMs()
+    : getInitiatorHistorySinceMs();
   if (parsed == null) {
     return maxMs;
   }

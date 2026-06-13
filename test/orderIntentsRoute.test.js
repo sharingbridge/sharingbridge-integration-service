@@ -207,7 +207,7 @@ test("coordinator lists order intents across donors", async (t) => {
   const donorBody = JSON.parse(await donorList.text());
   assert.equal(donorBody.role, "initiator");
   assert.equal(donorBody.dashboard, "limited");
-  assert.equal(donorBody.since, "2h");
+  assert.equal(donorBody.since, "168h");
   assert.equal(donorBody.feed?.window_hours, 2);
   assert.equal(donorBody.feed?.location_mode, "own_only");
   assert.equal(donorBody.order_intents.length, 1);
@@ -284,7 +284,7 @@ test("donor list with near_lat near_lng includes neighbours within radius", asyn
   assert.equal(bob.location_lng, null);
 });
 
-test("donor list applies since=2h and drops older intents", async (t) => {
+test("donor own-history list uses 7d window; near scope uses 2h", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sb-order-since-"));
   t.after(() => fs.rm(tempDir, { recursive: true, force: true }));
 
@@ -337,9 +337,17 @@ test("donor list applies since=2h and drops older intents", async (t) => {
     { headers: { authorization: `Bearer ${aliceToken}` } }
   );
   const donorBody = JSON.parse(await donorList.text());
-  assert.equal(donorBody.since, "2h");
-  assert.equal(donorBody.order_intents.length, 1);
-  assert.equal(donorBody.order_intents[0].pack_id, "pack-new");
+  assert.equal(donorBody.since, "168h");
+  assert.equal(donorBody.order_intents.length, 2);
+
+  const nearList = await fetch(
+    `http://127.0.0.1:${port}/v1/donor-seeker/order-intents?near_lat=12.97&near_lng=80.22`,
+    { headers: { authorization: `Bearer ${aliceToken}` } }
+  );
+  const nearBody = JSON.parse(await nearList.text());
+  assert.equal(nearBody.since, "2h");
+  assert.equal(nearBody.order_intents.length, 1);
+  assert.equal(nearBody.order_intents[0].pack_id, "pack-new");
 
   const coordToken = mintAuthToken("coord-1", { role: "coordinator" });
   const coordList = await fetch(
