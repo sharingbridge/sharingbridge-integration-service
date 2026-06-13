@@ -28,10 +28,18 @@ function recordWithPhoto(ageMs, userId = "alice") {
 test("formatOrderIntentLimited strips photo URLs outside neighbourhood window", () => {
   const windowMs = getDonorNeighbourhoodWindowMs();
   const old = recordWithPhoto(windowMs + 1000);
-  const formatted = formatOrderIntentLimited(old, now);
+  const formatted = formatOrderIntentLimited(old, now, "bob");
   assert.equal(formatted.has_reference_photo, false);
   assert.equal(formatted.reference_photo_view_url, "");
   assert.equal(formatted.reference_photo_thumbnail_url, "");
+});
+
+test("formatOrderIntentLimited keeps own photo URLs for history list", () => {
+  const windowMs = getDonorNeighbourhoodWindowMs();
+  const old = recordWithPhoto(windowMs + 1000);
+  const formatted = formatOrderIntentLimited(old, now, "alice");
+  assert.equal(formatted.reference_photo_view_url, "https://cdn/view");
+  assert.equal(formatted.reference_photo_thumbnail_url, "https://cdn/thumb");
 });
 
 test("formatOrderIntentLimited keeps photo URLs within neighbourhood window", () => {

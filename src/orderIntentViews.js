@@ -6,7 +6,7 @@ export function isCoordinatorApiRole(role) {
 }
 
 function intentTimestampMs(record) {
-  const raw = record.updated_at || record.created_at;
+  const raw = record.created_at;
   const ms = Date.parse(raw || "");
   return Number.isNaN(ms) ? 0 : ms;
 }
@@ -39,6 +39,9 @@ export function formatOrderIntentLimited(
     location_lat: keepCoords ? base.location_lat : null,
     location_lng: keepCoords ? base.location_lng : null
   };
+  if (isOwnIntent(record, viewerUserId)) {
+    return localized;
+  }
   if (!referencePhotoWithinViewerWindow(record, nowMs)) {
     return {
       ...localized,
