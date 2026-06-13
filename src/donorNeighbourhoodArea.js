@@ -1,3 +1,5 @@
+import { normalizeLocalityKey } from "./localityKey.js";
+
 const DEFAULT_RADIUS_M = 5000;
 /** Upper bound only — prevents oversized ST_DWithin scans; no high minimum floor. */
 const MAX_RADIUS_M = 50_000;
@@ -49,10 +51,7 @@ export function parseGeoCoord(value, kind) {
 export function parseNeighbourhoodQuery(params) {
   const nearLat = parseGeoCoord(params.get("near_lat"), "lat");
   const nearLng = parseGeoCoord(params.get("near_lng"), "lng");
-  const localityKey =
-    typeof params.get("locality_key") === "string"
-      ? params.get("locality_key").trim()
-      : "";
+  const localityKey = normalizeLocalityKey(params.get("locality_key") ?? "");
   let radiusM = getDonorNeighbourhoodRadiusM();
   const radiusRaw = params.get("radius_m");
   if (radiusRaw != null && radiusRaw !== "") {

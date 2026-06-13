@@ -5,16 +5,28 @@
 
 const LOCALITY_KEY_PART = /^[A-Z0-9]{2,10}$/;
 
+export function normalizeLocalityKey(key) {
+  const trimmed = String(key ?? "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed
+    .split(":")
+    .map((part) => part.trim().toUpperCase())
+    .filter(Boolean)
+    .join(":");
+}
+
 /**
  * @param {string} key
  * @returns {boolean}
  */
 export function isValidLocalityKey(key) {
-  const trimmed = String(key ?? "").trim();
-  if (!trimmed) {
+  const normalized = normalizeLocalityKey(key);
+  if (!normalized) {
     return false;
   }
-  const parts = trimmed.split(":");
+  const parts = normalized.split(":");
   if (parts.length < 1 || parts.length > 3) {
     return false;
   }
@@ -62,8 +74,8 @@ export function offerAppliesToLocality(offerKey, userKey) {
  * @param {string} filterKey
  */
 export function recordMatchesLocalityFilter(recordKey, filterKey) {
-  const record = String(recordKey ?? "").trim();
-  const filter = String(filterKey ?? "").trim();
+  const record = normalizeLocalityKey(recordKey);
+  const filter = normalizeLocalityKey(filterKey);
   if (!record || !filter) {
     return false;
   }

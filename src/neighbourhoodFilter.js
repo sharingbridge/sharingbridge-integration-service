@@ -26,11 +26,11 @@ export function haversineDistanceM(lat1, lng1, lat2, lng2) {
  * @param {{ type: "near", nearLat: number, nearLng: number, radiusM: number } | { type: "locality", localityKey: string }} scope
  */
 export function intentMatchesNeighbourhood(record, scope) {
-  if (!recordHasLocation(record)) {
-    return false;
-  }
   if (scope.type === "locality") {
     return recordMatchesLocalityFilter(record.locality_key, scope.localityKey);
+  }
+  if (!recordHasLocation(record)) {
+    return false;
   }
   const distance = haversineDistanceM(
     scope.nearLat,
@@ -82,7 +82,10 @@ export function filterRecordsByNeighbourhood(
       return true;
     }
     if (!recordHasLocation(record)) {
-      // No handover GPS at registration — still visible in the time window for By area.
+      if (scope.type === "locality") {
+        return recordMatchesLocalityFilter(record.locality_key, scope.localityKey);
+      }
+      // No handover GPS — still visible in the time window for near (By area).
       return scope.type === "near";
     }
     return intentMatchesNeighbourhood(record, scope);

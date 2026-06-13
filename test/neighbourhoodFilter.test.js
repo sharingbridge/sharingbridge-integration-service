@@ -73,6 +73,34 @@ test("intentMatchesNeighbourhood locality scope includes descendant postal keys"
   );
 });
 
+test("intentMatchesNeighbourhood locality scope matches without GPS", () => {
+  const record = {
+    locality_key: FIXTURE_LOCALITY_POSTAL
+  };
+  assert.equal(
+    intentMatchesNeighbourhood(record, {
+      type: "locality",
+      localityKey: "IN:TN"
+    }),
+    true
+  );
+});
+
+test("filterRecordsByNeighbourhood locality includes rows without GPS", () => {
+  const records = [
+    { user_id: "bob", locality_key: FIXTURE_LOCALITY_POSTAL },
+    { user_id: "carol", locality_key: "IN:KA:560001" }
+  ];
+  const filtered = filterRecordsByNeighbourhood(
+    records,
+    { type: "locality", localityKey: "IN:TN" },
+    "",
+    "coordinator"
+  );
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].user_id, "bob");
+});
+
 test("filterRecordsByNeighbourhood keeps viewer own rows without geo on intent", () => {
   const records = [
     { user_id: "alice", pack_id: "a" },

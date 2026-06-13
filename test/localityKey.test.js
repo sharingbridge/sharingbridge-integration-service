@@ -2,11 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   localityKeyChain,
+  normalizeLocalityKey,
   offerAppliesToLocality,
   recordMatchesLocalityFilter,
   resolveStandardOffersForLocality
 } from "../src/localityKey.js";
 import { FIXTURE_STANDARD_OFFERS } from "./fixtures/standardOffersCatalog.js";
+
+test("normalizeLocalityKey uppercases postal segments", () => {
+  assert.equal(normalizeLocalityKey("in:tn:600115"), "IN:TN:600115");
+});
 
 test("localityKeyChain returns most-specific-first ancestors", () => {
   assert.deepEqual(localityKeyChain("IN:TN:600115"), [
