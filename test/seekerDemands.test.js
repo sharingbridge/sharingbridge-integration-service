@@ -25,6 +25,20 @@ test("validateCreateSeekerDemandRequest requires email_share_consent", () => {
   );
 });
 
+test("buildSeekerDemandRecord assigns eco_kitchen_self_pay when requested", () => {
+  const offer = FIXTURE_STANDARD_OFFERS[2];
+  const record = buildSeekerDemandRecord(
+    {
+      standard_offer_id: offer.id,
+      meal_units: 2,
+      email_share_consent: true,
+      initiation_route: "eco_kitchen_self_pay"
+    },
+    { reportedByUserId: "u1", standardOffer: offer }
+  );
+  assert.equal(record.initiation_route, "eco_kitchen_self_pay");
+});
+
 test("buildSeekerDemandRecord assigns id and menu from standard offer", () => {
   const offer = FIXTURE_STANDARD_OFFERS[2];
   const record = buildSeekerDemandRecord(
