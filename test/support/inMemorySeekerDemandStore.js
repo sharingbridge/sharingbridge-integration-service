@@ -30,4 +30,12 @@ export class InMemorySeekerDemandStore {
     }
     return list.slice(0, limit);
   }
+
+  async findByOrderCode(orderCode) {
+    const trimmed = String(orderCode ?? "").trim();
+    if (!trimmed) {
+      return null;
+    }
+    return this.rows.find((row) => row.order_code === trimmed) ?? null;
+  }
 }

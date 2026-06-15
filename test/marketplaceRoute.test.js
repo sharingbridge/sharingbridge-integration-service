@@ -36,7 +36,11 @@ async function seedSeekerDemand(
   offerId = TEST_OFFER_ID
 ) {
   let record = buildSeekerDemandRecord(
-    { standard_offer_id: offerId, meal_units: 2 },
+    {
+      standard_offer_id: offerId,
+      meal_units: 2,
+      email_share_consent: true
+    },
     { reportedByUserId: userId, standardOffer: fixtureOffer(offerId) }
   );
   record = applyLocationToRecord(record, {
@@ -83,7 +87,8 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
     body: JSON.stringify({
       locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: TEST_OFFER_ID,
-      meal_units: 3
+      meal_units: 3,
+      email_share_consent: true
     })
   });
   assert.equal(pledge.status, 201);
@@ -98,7 +103,8 @@ test("POST /v1/pledges and /v1/vendor-bids appear on demand board", async (t) =>
       locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: TEST_OFFER_ID,
       vendor_name: "A2B Kitchen",
-      portions: 20
+      portions: 20,
+      email_share_consent: true
     })
   });
   assert.equal(bid.status, 201);
@@ -146,7 +152,8 @@ test("POST /v1/pledges allows coordinator reporter", async (t) => {
     body: JSON.stringify({
       locality_key: FIXTURE_LOCALITY_POSTAL,
       standard_offer_id: TEST_OFFER_ID,
-      meal_units: 2
+      meal_units: 2,
+      email_share_consent: true
     })
   });
   assert.equal(pledge.status, 201);
@@ -185,7 +192,8 @@ test("POST /v1/pledges rejects offer line that does not match demand", async (t)
     body: JSON.stringify({
       locality_key: "IN:KA:560001",
       standard_offer_id: TEST_OFFER_ID,
-      meal_units: 1
+      meal_units: 1,
+      email_share_consent: true
     })
   });
   assert.equal(response.status, 400);

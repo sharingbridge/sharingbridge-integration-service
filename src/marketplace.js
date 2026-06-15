@@ -1,5 +1,6 @@
 import { aggregateDemandByStandardOffer } from "./seekerDemands.js";
 import { offerBucketKey } from "./standardOffers.js";
+import { emailShareConsentTimestamp, validateEmailShareConsent } from "./emailShareConsent.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -27,6 +28,10 @@ export function validateCreatePledgeRequest(payload) {
   if (payload.meal_units != null && units == null) {
     return "meal_units must be a positive integer up to 50.";
   }
+  const consentError = validateEmailShareConsent(payload);
+  if (consentError) {
+    return consentError;
+  }
   return null;
 }
 
@@ -47,6 +52,10 @@ export function validateCreateVendorBidRequest(payload) {
   if (portions == null) {
     return "portions must be a positive integer up to 500.";
   }
+  const consentError = validateEmailShareConsent(payload);
+  if (consentError) {
+    return consentError;
+  }
   return null;
 }
 
@@ -65,6 +74,7 @@ export function buildPledgeRecord(payload, { pledgedByUserId }) {
       typeof payload.menu_label === "string" ? payload.menu_label.trim() : "",
     meal_units: parseUnits(payload.meal_units ?? 1) ?? 1,
     status: "pledged",
+    email_share_consent_at: emailShareConsentTimestamp(payload),
     created_at: now,
     updated_at: now
   };
@@ -87,6 +97,14 @@ export function buildVendorBidRecord(payload, { submittedByUserId }) {
     portions: parseUnits(payload.portions, 500) ?? 1,
     notes: typeof payload.notes === "string" ? payload.notes.trim() : "",
     status: "submitted",
+    commitment_status: "committed",
+    seeker_demand_id:
+      typeof payload.seeker_demand_id === "string"
+        ? payload.seeker_demand_id.trim()
+        : null,
+    order_code:
+      typeof payload.order_code === "string" ? payload.order_code.trim() : null,
+    email_share_consent_at: emailShareConsentTimestamp(payload),
     created_at: now,
     updated_at: now
   };
@@ -102,6 +120,7 @@ export function formatPledgeForApi(record) {
     menu_label: record.menu_label ?? "",
     meal_units: record.meal_units,
     status: record.status,
+    email_share_consent_at: record.email_share_consent_at ?? null,
     created_at: record.created_at,
     updated_at: record.updated_at
   };
@@ -119,6 +138,10 @@ export function formatVendorBidForApi(record) {
     portions: record.portions,
     notes: record.notes ?? "",
     status: record.status,
+    commitment_status: record.commitment_status ?? "submitted",
+    seeker_demand_id: record.seeker_demand_id ?? null,
+    order_code: record.order_code ?? null,
+    email_share_consent_at: record.email_share_consent_at ?? null,
     created_at: record.created_at,
     updated_at: record.updated_at
   };

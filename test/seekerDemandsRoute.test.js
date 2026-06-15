@@ -17,6 +17,7 @@ const TEST_OFFER_ID = "so-lunch-full";
 const demandPayload = {
   standard_offer_id: TEST_OFFER_ID,
   meal_units: 2,
+  email_share_consent: true,
   location_lat: 12.9427,
   location_lng: 80.2379,
   locality_key: FIXTURE_LOCALITY_POSTAL
@@ -59,6 +60,8 @@ test("POST /v1/seeker-demands records seeker demand", async (t) => {
   assert.equal(response.status, 201);
   assert.equal(body.created, true);
   assert.match(body.seeker_demand.seeker_demand_id, /^sd-/);
+  assert.match(body.seeker_demand.order_code, /^SB-/);
+  assert.equal(body.seeker_demand.initiation_route, "eco_kitchen_pledge");
   assert.equal(body.seeker_demand.meal_units, 2);
   assert.equal(body.seeker_demand.standard_offer_id, TEST_OFFER_ID);
   assert.equal(body.seeker_demand.reported_by_user_id, "alice");

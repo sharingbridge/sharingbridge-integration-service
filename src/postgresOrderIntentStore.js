@@ -1,5 +1,7 @@
 import pg from "pg";
 import { assertOrderIntentGeoSchema } from "./assertOrderIntentGeoSchema.js";
+import { probeEcoKitchenPhase3 } from "./ecoKitchenPhase3.js";
+import { isValidOrderCode } from "./orderCode.js";
 import {
   buildOrderIntentListSql,
   geoColumnsFromRecord
@@ -60,6 +62,8 @@ function rowToRecord(row) {
 
   return {
     id: row.order_intent_id,
+    order_code: row.order_code ?? null,
+    initiation_route: row.initiation_route ?? "direct_order",
     user_id: row.user_id,
     pack_id: row.pack_id,
     status: row.status,
@@ -134,8 +138,13 @@ function locationSqlFragment(lngParam, latParam) {
 }
 
 export class PostgresOrderIntentStore {
-  constructor(pool) {
+  constructor(pool, { phase3 = null } = {}) {
     this.pool = pool;
+    this.phase3 = phase3 ?? {
+      orderCodes: false,
+      pledgeConsent: false,
+      kitchenCommitment: false
+    };
   }
 
   static async create(connectionString) {
@@ -150,7 +159,8 @@ export class PostgresOrderIntentStore {
     } finally {
       client.release();
     }
-    return new PostgresOrderIntentStore(pool);
+    const phase3 = await probeEcoKitchenPhase3(pool);
+    return new PostgresOrderIntentStore(pool, { phase3 });
   }
 
   async init() {}
@@ -259,6 +269,10 @@ export class PostgresOrderIntentStore {
       ];
       const lngParam = "$7";
       const latParam = "$8";
+      const returningCols = this.phase3?.orderCodes
+        ? `order_intent_id, user_id, pack_id, status, payload, created_at, updated_at,
+           order_code, initiation_route, delivered_at`
+        : `order_intent_id, user_id, pack_id, status, payload, created_at, updated_at`;
       const result = await this.pool.query(
         `UPDATE order_intents SET
            status = $3,
@@ -267,10 +281,39 @@ export class PostgresOrderIntentStore {
            locality_key = $6,
            location = ${locationSqlFragment(lngParam, latParam)}
          WHERE user_id = $1 AND pack_id = $2
-         RETURNING order_intent_id, user_id, pack_id, status, payload, created_at, updated_at`,
+         RETURNING ${returningCols}`,
         values
       );
       return { record: rowToRecord(result.rows[0]), created: false };
+    }
+
+    const lngParam = this.phase3?.orderCodes ? "$11" : "$9";
+    const latParam = this.phase3?.orderCodes ? "$12" : "$10";
+    if (this.phase3?.orderCodes) {
+      const result = await this.pool.query(
+        `INSERT INTO order_intents (
+           order_intent_id, user_id, pack_id, status, payload, created_at, updated_at,
+           locality_key, location, order_code, initiation_route
+         ) VALUES ($1, $2, $3, $4, $5::jsonb, $6::timestamptz, $7::timestamptz, $8,
+           ${locationSqlFragment(lngParam, latParam)}, $9, $10)
+         RETURNING order_intent_id, user_id, pack_id, status, payload, created_at, updated_at,
+           order_code, initiation_route, delivered_at`,
+        [
+          record.id,
+          userId,
+          packId,
+          record.status,
+          JSON.stringify(payload),
+          createdAt,
+          updatedAt,
+          localityKey || null,
+          record.order_code ?? null,
+          record.initiation_route ?? "direct_order",
+          lng,
+          lat
+        ]
+      );
+      return { record: rowToRecord(result.rows[0]), created: true };
     }
 
     const values = [
@@ -285,18 +328,36 @@ export class PostgresOrderIntentStore {
       lng,
       lat
     ];
-    const lngParam = "$9";
-    const latParam = "$10";
+    const insertLngParam = "$9";
+    const insertLatParam = "$10";
     const result = await this.pool.query(
       `INSERT INTO order_intents (
          order_intent_id, user_id, pack_id, status, payload, created_at, updated_at,
          locality_key, location
        ) VALUES ($1, $2, $3, $4, $5::jsonb, $6::timestamptz, $7::timestamptz, $8,
-         ${locationSqlFragment(lngParam, latParam)})
+         ${locationSqlFragment(insertLngParam, insertLatParam)})
        RETURNING order_intent_id, user_id, pack_id, status, payload, created_at, updated_at`,
       values
     );
     return { record: rowToRecord(result.rows[0]), created: true };
+  }
+
+  async findByOrderCode(orderCode) {
+    if (!isValidOrderCode(orderCode)) {
+      return null;
+    }
+    const codeCols = this.phase3?.orderCodes
+      ? "order_code, initiation_route,"
+      : "";
+    const result = await this.pool.query(
+      `SELECT order_intent_id, user_id, pack_id, status, payload, created_at, updated_at,
+              ${codeCols} delivered_at
+       FROM order_intents
+       WHERE order_code = $1
+       LIMIT 1`,
+      [orderCode]
+    );
+    return result.rowCount > 0 ? rowToRecord(result.rows[0]) : null;
   }
 
   async listForUser(userId) {

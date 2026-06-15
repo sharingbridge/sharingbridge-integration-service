@@ -28,6 +28,29 @@ export class InMemoryMarketplaceStore {
     return this.vendorBids.slice(0, limit);
   }
 
+  async findKitchenCommitmentByOrderCode(orderCode) {
+    const trimmed = String(orderCode ?? "").trim();
+    if (!trimmed) {
+      return null;
+    }
+    return (
+      this.vendorBids.find(
+        (row) =>
+          row.order_code === trimmed && row.commitment_status === "committed"
+      ) ?? null
+    );
+  }
+
+  async listPledgesByOrderCode(orderCode) {
+    const demand = await this.findSeekerDemandByOrderCode?.(orderCode);
+    if (!demand?.locality_key) {
+      return [];
+    }
+    return this.pledges.filter(
+      (row) => row.locality_key === demand.locality_key
+    );
+  }
+
   async listStandardOffers({ localityKey = null } = {}) {
     const trimmed = String(localityKey ?? "").trim();
     const offers = [...this.standardOffers];

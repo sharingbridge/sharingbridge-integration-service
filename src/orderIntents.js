@@ -1,3 +1,6 @@
+import { generateOrderCode } from "./orderCode.js";
+import { INITIATION_ROUTES } from "./initiationRoutes.js";
+
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -36,6 +39,8 @@ export function buildOrderIntentRecord(payload, { userId }) {
 
   return {
     id: `oi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    order_code: generateOrderCode(),
+    initiation_route: INITIATION_ROUTES.DIRECT_ORDER,
     user_id: userId,
     pack_id: packId,
     status: payload.status || "instructions_copied",
@@ -84,6 +89,8 @@ export function buildOrderIntentRecord(payload, { userId }) {
 export function formatOrderIntentForApi(record) {
   return {
     order_intent_id: record.id,
+    order_code: record.order_code ?? null,
+    initiation_route: record.initiation_route ?? INITIATION_ROUTES.DIRECT_ORDER,
     user_id: record.user_id ?? null,
     pack_id: record.pack_id,
     status: record.status,

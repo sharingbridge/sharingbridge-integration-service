@@ -15,13 +15,30 @@ test("validateCreateSeekerDemandRequest requires standard_offer_id", () => {
   );
 });
 
+test("validateCreateSeekerDemandRequest requires email_share_consent", () => {
+  assert.match(
+    validateCreateSeekerDemandRequest({
+      standard_offer_id: "so-lunch-full",
+      meal_units: 1
+    }),
+    /email_share_consent/
+  );
+});
+
 test("buildSeekerDemandRecord assigns id and menu from standard offer", () => {
   const offer = FIXTURE_STANDARD_OFFERS[2];
   const record = buildSeekerDemandRecord(
-    { standard_offer_id: offer.id, meal_units: 3 },
+    {
+      standard_offer_id: offer.id,
+      meal_units: 3,
+      email_share_consent: true
+    },
     { reportedByUserId: "u1", standardOffer: offer }
   );
   assert.match(record.id, /^sd-/);
+  assert.match(record.order_code, /^SB-/);
+  assert.equal(record.initiation_route, "eco_kitchen_pledge");
+  assert.ok(record.initiator_email_share_consent_at);
   assert.equal(record.meal_units, 3);
   assert.equal(record.standard_offer_id, offer.id);
   assert.equal(record.menu_label, offer.menu_label);

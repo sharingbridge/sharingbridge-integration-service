@@ -1,4 +1,13 @@
 import { offerBucketKey } from "./standardOffers.js";
+import { generateOrderCode } from "./orderCode.js";
+import {
+  INITIATION_ROUTES,
+  resolveSeekerDemandRoute
+} from "./initiationRoutes.js";
+import {
+  emailShareConsentTimestamp,
+  validateEmailShareConsent
+} from "./emailShareConsent.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -26,6 +35,10 @@ export function validateCreateSeekerDemandRequest(payload) {
   if (payload.meal_units != null && units == null) {
     return "meal_units must be a positive integer up to 50.";
   }
+  const consentError = validateEmailShareConsent(payload);
+  if (consentError) {
+    return consentError;
+  }
   return null;
 }
 
@@ -41,6 +54,9 @@ export function buildSeekerDemandRecord(
 
   return {
     id: `sd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    order_code: generateOrderCode(),
+    initiation_route: resolveSeekerDemandRoute(payload),
+    initiator_email_share_consent_at: emailShareConsentTimestamp(payload),
     reported_by_user_id: reportedByUserId,
     status: "recorded",
     meal_units: mealUnits,
@@ -62,6 +78,9 @@ export function buildSeekerDemandRecord(
 export function formatSeekerDemandForApi(record) {
   return {
     seeker_demand_id: record.id,
+    order_code: record.order_code ?? null,
+    initiation_route:
+      record.initiation_route ?? INITIATION_ROUTES.ECO_KITCHEN_PLEDGE,
     reported_by_user_id: record.reported_by_user_id ?? null,
     status: record.status,
     meal_units: record.meal_units,
