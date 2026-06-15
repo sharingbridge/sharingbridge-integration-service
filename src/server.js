@@ -107,6 +107,7 @@ export function createIntegrationServer({
   orderIntentStore = null,
   seekerDemandStore = null,
   marketplaceStore = null,
+  deviceTokenStore = null,
   lookupEmailsByUserId = null,
   corsConfig = parseCorsOrigins()
 }) {
@@ -1246,6 +1247,63 @@ export function createIntegrationServer({
       return;
     }
 
+    if (req.method === "PUT" && req.url === "/v1/device-tokens") {
+      readJsonBody(req)
+        .then(async (payload) => {
+          const auth = extractAuthFromHeaders(req.headers);
+          if (!auth) {
+            return sendJson(res, 401, {
+              code: "missing_auth_context",
+              message: "A valid Bearer token is required."
+            });
+          }
+          if (!deviceTokenStore) {
+            return sendJson(res, 503, {
+              code: "device_tokens_unavailable",
+              message: "Device token storage is not configured."
+            });
+          }
+          const {
+            validateUpsertDeviceTokenRequest,
+            buildDeviceTokenRecord
+          } = await import("./deviceTokens.js");
+          const validationError = validateUpsertDeviceTokenRequest(payload);
+          if (validationError) {
+            return sendJson(res, 400, {
+              code: "invalid_request",
+              message: validationError
+            });
+          }
+          const record = buildDeviceTokenRecord(payload, {
+            userId: auth.userId
+          });
+          const saved = await deviceTokenStore.upsertForUser(
+            auth.userId,
+            record
+          );
+          return sendJson(res, 200, {
+            device_token: {
+              user_id: saved.user_id,
+              platform: saved.platform,
+              updated_at: saved.updated_at
+            }
+          });
+        })
+        .catch((error) => {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, error?.status || 500, {
+            code: error?.code || "internal_error",
+            message: error?.message || "Unexpected error."
+          });
+        });
+      return;
+    }
+
     if (req.method === "GET" && req.url.startsWith("/v1/connections/")) {
       const auth = extractAuthFromHeaders(req.headers);
       if (!auth) {
@@ -1321,6 +1379,17 @@ async function buildDefaultSeekerDemandStore() {
   return store;
 }
 
+async function buildDefaultDeviceTokenStore() {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) {
+    return null;
+  }
+  const { PostgresDeviceTokenStore } = await import(
+    "./postgresDeviceTokenStore.js"
+  );
+  return PostgresDeviceTokenStore.create(databaseUrl);
+}
+
 function buildDefaultPreferencesRepository() {
   const baseUrl = process.env.USER_SERVICE_BASE_URL?.trim();
   if (!baseUrl) {
@@ -1338,14 +1407,16 @@ if (isMainModule) {
   Promise.all([
     buildDefaultOrderIntentStore(),
     buildDefaultSeekerDemandStore(),
-    buildDefaultMarketplaceStore()
+    buildDefaultMarketplaceStore(),
+    buildDefaultDeviceTokenStore()
   ])
-    .then(([orderIntentStore, seekerDemandStore, marketplaceStore]) => {
+    .then(([orderIntentStore, seekerDemandStore, marketplaceStore, deviceTokenStore]) => {
       const server = createIntegrationServer({
         preferencesRepository,
         orderIntentStore,
         seekerDemandStore,
-        marketplaceStore
+        marketplaceStore,
+        deviceTokenStore
       });
       return Promise.all([preferencesRepository.init()]).then(() => {
         server.listen(DEFAULT_PORT, () => {

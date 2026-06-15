@@ -41,6 +41,7 @@ export async function notifyConnectionReady({
   const payload = {
     type: "connection_ready",
     order_code: trimmed,
+    recipient_user_ids: recipientUserIds,
     recipient_emails: recipientEmails,
     subject,
     text
@@ -49,14 +50,24 @@ export async function notifyConnectionReady({
   if (!webhook) {
     logAt(
       "info",
-      `[connection-notify] order ${trimmed} ready — ${recipientEmails.length} recipient(s); set CONNECTION_NOTIFY_WEBHOOK_URL to deliver email`
+      `[connection-notify] order ${trimmed} ready — ${recipientUserIds.length} recipient(s); set CONNECTION_NOTIFY_WEBHOOK_URL to deliver push/email`
     );
-    return { sent: false, reason: "webhook_not_configured", recipient_count: recipientEmails.length };
+    return {
+      sent: false,
+      reason: "webhook_not_configured",
+      recipient_count: recipientUserIds.length
+    };
+  }
+
+  const headers = { "content-type": "application/json" };
+  const secret = process.env.CONNECTION_NOTIFY_WEBHOOK_SECRET?.trim();
+  if (secret) {
+    headers["x-webhook-secret"] = secret;
   }
 
   const response = await fetchImpl(webhook, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify(payload)
   });
 
