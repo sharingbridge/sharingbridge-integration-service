@@ -107,6 +107,7 @@ export function createIntegrationServer({
   orderIntentStore = null,
   seekerDemandStore = null,
   marketplaceStore = null,
+  lookupEmailsByUserId = null,
   corsConfig = parseCorsOrigins()
 }) {
   if (!preferencesRepository) {
@@ -117,6 +118,17 @@ export function createIntegrationServer({
   if (!orderIntentStore) {
     throw new Error("createIntegrationServer requires orderIntentStore");
   }
+
+  async function resolveEmailLookup(userIds) {
+    if (lookupEmailsByUserId) {
+      return lookupEmailsByUserId(userIds);
+    }
+    if (orderIntentStore?.pool) {
+      return lookupDonorEmailsByUserId(orderIntentStore.pool, userIds);
+    }
+    return {};
+  }
+
   return createServer(async (req, res) => {
     req.url = normalizeIntegrationApiPath(req.url);
     applyCorsHeaders(req, res, corsConfig);
@@ -509,7 +521,41 @@ export function createIntegrationServer({
               submittedByUserId: auth.userId
             }
           );
-          const saved = await marketplaceStore.insertVendorBid(record);
+          const { enrichVendorBidWithSeekerDemand, connectionNotifyRecipientIds } =
+            await import("./seekerDemandLink.js");
+          const { notifyConnectionReady } = await import("./connectionNotifier.js");
+          const linked = await enrichVendorBidWithSeekerDemand(
+            record,
+            seekerDemandStore
+          );
+          const saved = await marketplaceStore.insertVendorBid(linked);
+          if (
+            saved.commitment_status === "committed" &&
+            saved.order_code &&
+            seekerDemandStore?.findByOrderCode
+          ) {
+            const seekerDemand = await seekerDemandStore.findByOrderCode(
+              saved.order_code
+            );
+            const pledges =
+              seekerDemand && marketplaceStore.listPledges
+                ? (await marketplaceStore.listPledges({ limit: 200 })).filter(
+                    (row) =>
+                      row.locality_key === seekerDemand.locality_key &&
+                      row.standard_offer_id === seekerDemand.standard_offer_id
+                  )
+                : [];
+            const recipientUserIds = connectionNotifyRecipientIds({
+              seekerDemand,
+              kitchenCommitment: saved,
+              pledgeRecords: pledges
+            });
+            void notifyConnectionReady({
+              orderCode: saved.order_code,
+              recipientUserIds,
+              lookupEmails: resolveEmailLookup
+            });
+          }
           return sendJson(res, 201, {
             vendor_bid: formatVendorBidForApi(saved)
           });
@@ -1198,6 +1244,36 @@ export function createIntegrationServer({
       });
 
       return;
+    }
+
+    if (req.method === "GET" && req.url.startsWith("/v1/connections/")) {
+      const auth = extractAuthFromHeaders(req.headers);
+      if (!auth) {
+        return sendJson(res, 401, {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        });
+      }
+      const pathCode = decodeURIComponent(
+        req.url.slice("/v1/connections/".length).split("?")[0]
+      );
+      try {
+        const { resolveOrderConnection } = await import("./connectionHandoff.js");
+        const result = await resolveOrderConnection({
+          orderCode: pathCode,
+          authUserId: auth.userId,
+          authRole: auth.role,
+          seekerDemandStore,
+          marketplaceStore,
+          lookupEmails: resolveEmailLookup
+        });
+        return sendJson(res, 200, result);
+      } catch (error) {
+        return sendJson(res, error?.status || 500, {
+          code: error?.code || "connection_error",
+          message: error?.message || "Could not load connection."
+        });
+      }
     }
 
     sendJson(res, 404, {
