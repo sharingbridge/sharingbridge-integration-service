@@ -18,13 +18,15 @@ This repository contains the **Integration Service** - handles all third-party v
 - 🏪 Direct vendor program integration (MVP approach)
 - 🔒 Privacy-compliant beneficiary data sharing (time-limited secure links with role-scoped token access, audit logging, and expiry controls)
 
-**Technology Stack:** Node.js with NestJS for API orchestration and webhook handling
+**Technology Stack:** Node.js 20 HTTP (MVP). NestJS is a scale target only.
 
 For overall project context, see the [main SharingBridge repository](https://github.com/sharingbridge/sharingbridge).
 
 ## Status
 
-**Shipped:** Donor setup, instruction-pack, order intents, seeker demands, marketplace (standard offers, pledges, demand board). Requires **`DATABASE_URL`** and **`USER_SERVICE_BASE_URL`** at `npm start`. **Doc map:** [AGENT_HANDOFF.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/AGENT_HANDOFF.md).
+**Shipped:** Donor setup, instruction-pack, order intents, seeker demands, marketplace (Actions board), connections API, device tokens, connection webhook. Requires **`DATABASE_URL`** and **`USER_SERVICE_BASE_URL`** at `npm start`.
+
+**Doc map:** [STATUS.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/STATUS.md) · [AGENT_SESSION.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/AGENT_SESSION.md)
 
 ## Getting Started
 
@@ -76,13 +78,13 @@ When `AI_ORCHESTRATION_BASE_URL` is set and feature flags are on, integration-se
 | `AI_ORCHESTRATION_SUGGEST_VENDORS_TIMEOUT_MS` | suggest-vendors HTTP timeout (default `15000`) |
 | `AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS` | instruction-pack HTTP timeout (default `60000`) |
 
-Copy `.env.example` for a local three-service stack. On orchestration failure, suggest-vendors falls back to the fixed mock list; instruction-pack falls back to a server-side template.
+Copy `.env.example` for a local three-service stack. When `AI_MOCK_FALLBACK_ENABLED=false` (production default), orchestration failures return **503** instead of mock/template text.
 
-See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbridge/development/AI_PLATFORM_INTEGRATION.md`.
+See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbridge/development/AI_AS_BUILT.md`.
 
 ### Donor presets
 
-Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. Marketplace SQL **M1–M3**: [database-setup-sequence.md](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/database-setup-sequence.md).
+Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. Marketplace + eco kitchen SQL **M1–M5**: [database-setup-sequence.md](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/database-setup-sequence.md).
 
 ## Contributing
 
