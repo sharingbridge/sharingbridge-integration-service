@@ -51,7 +51,11 @@ function rowToRecord(row) {
     updated_at:
       row.updated_at instanceof Date
         ? row.updated_at.toISOString()
-        : String(row.updated_at)
+        : String(row.updated_at),
+    delivered_at:
+      row.delivered_at instanceof Date
+        ? row.delivered_at.toISOString()
+        : row.delivered_at ?? null
   };
 }
 
@@ -88,7 +92,8 @@ export class PostgresSeekerDemandStore {
     this.phase3 = phase3 ?? {
       orderCodes: false,
       pledgeConsent: false,
-      kitchenCommitment: false
+      kitchenCommitment: false,
+      deliveryTimestamp: false
     };
   }
 
@@ -197,14 +202,25 @@ export class PostgresSeekerDemandStore {
     return withLocation;
   }
 
+  selectColumnFragments() {
+    const phaseCols = this.phase3?.orderCodes
+      ? `, order_code, initiation_route, initiator_email_share_consent_at`
+      : `, NULL::text AS order_code, 'eco_kitchen_pledge'::text AS initiation_route,
+         NULL::timestamptz AS initiator_email_share_consent_at`;
+    const deliveredCol = this.phase3?.deliveryTimestamp
+      ? `, delivered_at`
+      : `, NULL::timestamptz AS delivered_at`;
+    return { phaseCols, deliveredCol };
+  }
+
   async findByOrderCode(orderCode) {
     if (!this.enabled || !this.phase3?.orderCodes || !isValidOrderCode(orderCode)) {
       return null;
     }
+    const { phaseCols, deliveredCol } = this.selectColumnFragments();
     const result = await this.pool.query(
       `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
-              locality_key, created_at, updated_at, order_code, initiation_route,
-              initiator_email_share_consent_at,
+              locality_key, created_at, updated_at${phaseCols}${deliveredCol},
               NULL::double precision AS geo_lat, NULL::double precision AS geo_lng
        FROM seeker_demands
        WHERE order_code = $1
@@ -225,12 +241,9 @@ export class PostgresSeekerDemandStore {
       params.push(reporterUserIdFilter);
       where = `WHERE reported_by_user_id = $2`;
     }
-    const phaseCols = this.phase3?.orderCodes
-      ? `, order_code, initiation_route, initiator_email_share_consent_at`
-      : `, NULL::text AS order_code, 'eco_kitchen_pledge'::text AS initiation_route,
-         NULL::timestamptz AS initiator_email_share_consent_at`;
+    const { phaseCols, deliveredCol } = this.selectColumnFragments();
     const geoSql = `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
-              locality_key, created_at, updated_at${phaseCols},
+              locality_key, created_at, updated_at${phaseCols}${deliveredCol},
               ST_Y(location::geometry) AS geo_lat,
               ST_X(location::geometry) AS geo_lng
        FROM seeker_demands
@@ -238,7 +251,7 @@ export class PostgresSeekerDemandStore {
        ORDER BY updated_at DESC
        LIMIT $1`;
     const plainSql = `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
-              locality_key, created_at, updated_at${phaseCols},
+              locality_key, created_at, updated_at${phaseCols}${deliveredCol},
               NULL::double precision AS geo_lat,
               NULL::double precision AS geo_lng
        FROM seeker_demands
@@ -255,5 +268,58 @@ export class PostgresSeekerDemandStore {
       result = await this.pool.query(plainSql, params);
     }
     return result.rows.map(rowToRecord);
+  }
+
+  async findById(seekerDemandId) {
+    if (!this.enabled || !isNonEmptyString(seekerDemandId)) {
+      return null;
+    }
+    const { phaseCols, deliveredCol } = this.selectColumnFragments();
+    const result = await this.pool.query(
+      `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
+              locality_key, created_at, updated_at${phaseCols}${deliveredCol},
+              NULL::double precision AS geo_lat, NULL::double precision AS geo_lng
+       FROM seeker_demands
+       WHERE seeker_demand_id = $1
+       LIMIT 1`,
+      [seekerDemandId.trim()]
+    );
+    return result.rowCount > 0 ? rowToRecord(result.rows[0]) : null;
+  }
+
+  async updateByCoordinator(seekerDemandId, record) {
+    if (!this.enabled) {
+      throw this.unavailableError();
+    }
+    const id = String(seekerDemandId ?? "").trim();
+    if (!id) {
+      return null;
+    }
+    if (this.phase3?.deliveryTimestamp) {
+      const result = await this.pool.query(
+        `UPDATE seeker_demands
+         SET status = $2,
+             updated_at = $3::timestamptz,
+             delivered_at = $4::timestamptz
+         WHERE seeker_demand_id = $1
+         RETURNING seeker_demand_id`,
+        [
+          id,
+          record.status,
+          record.updated_at,
+          record.delivered_at ?? null
+        ]
+      );
+      return result.rowCount > 0 ? this.findById(id) : null;
+    }
+    const result = await this.pool.query(
+      `UPDATE seeker_demands
+       SET status = $2,
+           updated_at = $3::timestamptz
+       WHERE seeker_demand_id = $1
+       RETURNING seeker_demand_id`,
+      [id, record.status, record.updated_at]
+    );
+    return result.rowCount > 0 ? this.findById(id) : null;
   }
 }

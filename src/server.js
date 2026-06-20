@@ -908,6 +908,83 @@ export function createIntegrationServer({
           });
         }
       }
+
+      const seekerPatchPrefix = "/v1/seeker-demands/";
+      if (patchUrl.pathname.startsWith(seekerPatchPrefix)) {
+        const seekerDemandId = decodeURIComponent(
+          patchUrl.pathname.slice(seekerPatchPrefix.length)
+        );
+        try {
+          const payload = await readJsonBody(req);
+          const auth = extractAuthFromHeaders(req.headers);
+          if (!auth) {
+            return sendJson(res, 401, {
+              code: "missing_auth_context",
+              message: "A valid Bearer token is required."
+            });
+          }
+          if (!isCoordinatorApiRole(auth.role)) {
+            return sendJson(res, 403, {
+              code: "forbidden",
+              message: "Coordinator role required to update seeker demand delivery."
+            });
+          }
+          if (!seekerDemandStore?.findById || !seekerDemandStore?.updateByCoordinator) {
+            return sendJson(res, 503, {
+              code: "seeker_demand_unavailable",
+              message: "Seeker demand storage is not configured."
+            });
+          }
+          const existing = await seekerDemandStore.findById(seekerDemandId);
+          if (!existing) {
+            return sendJson(res, 404, {
+              code: "not_found",
+              message: "Seeker demand not found."
+            });
+          }
+          const { applySeekerDemandPatch } = await import(
+            "./seekerDemandPatch.js"
+          );
+          const { formatSeekerDemandForApi } = await import(
+            "./seekerDemands.js"
+          );
+          let patched;
+          try {
+            patched = applySeekerDemandPatch(existing, payload, {
+              coordinator: true
+            });
+          } catch (error) {
+            return sendJson(res, error?.status || 400, {
+              code: error?.code || "invalid_request",
+              message: error?.message || "Invalid seeker demand patch."
+            });
+          }
+          const saved = await seekerDemandStore.updateByCoordinator(
+            seekerDemandId,
+            patched
+          );
+          if (!saved) {
+            return sendJson(res, 500, {
+              code: "update_failed",
+              message: "Could not update seeker demand."
+            });
+          }
+          return sendJson(res, 200, {
+            seeker_demand: formatSeekerDemandForApi(saved)
+          });
+        } catch (error) {
+          if (error?.message === "invalid_json") {
+            return sendJson(res, 400, {
+              code: "invalid_json",
+              message: "Request body must be valid JSON."
+            });
+          }
+          return sendJson(res, 500, {
+            code: "internal_error",
+            message: error?.message || "Unexpected error."
+          });
+        }
+      }
     }
 
     if (

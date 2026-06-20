@@ -97,7 +97,11 @@ export function formatSeekerDemandForApi(record) {
     location_label: record.location_label ?? "",
     locality_key: record.locality_key ?? "",
     created_at: record.created_at,
-    updated_at: record.updated_at
+    updated_at: record.updated_at,
+    delivered_at:
+      typeof record.delivered_at === "string" && record.delivered_at.trim()
+        ? record.delivered_at.trim()
+        : null
   };
 }
 

@@ -5,13 +5,15 @@ export async function probeEcoKitchenPhase3(pool) {
     return {
       orderCodes: false,
       pledgeConsent: false,
-      kitchenCommitment: false
+      kitchenCommitment: false,
+      deliveryTimestamp: false
     };
   }
   const flags = {
     orderCodes: false,
     pledgeConsent: false,
-    kitchenCommitment: false
+    kitchenCommitment: false,
+    deliveryTimestamp: false
   };
   try {
     await pool.query(
@@ -35,6 +37,12 @@ export async function probeEcoKitchenPhase3(pool) {
       "SELECT email_share_consent_at, order_code, commitment_status FROM vendor_bids LIMIT 0"
     );
     flags.kitchenCommitment = true;
+  } catch {
+    // migration not applied
+  }
+  try {
+    await pool.query("SELECT delivered_at FROM seeker_demands LIMIT 0");
+    flags.deliveryTimestamp = true;
   } catch {
     // migration not applied
   }
