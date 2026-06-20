@@ -137,6 +137,9 @@ test("buildConnectionHandoff exposes kitchen email to initiator when ready", () 
   assert.equal(handoff.kitchen?.login_email, "kitchen@example.com");
   assert.equal(handoff.counterparty_email, "kitchen@example.com");
   assert.equal(handoff.kitchen?.display_name, "Green Kitchen");
+  assert.equal(handoff.demand?.seeker_demand_id, "sd-1");
+  assert.equal(handoff.demand?.need_description, "Lunch");
+  assert.equal(handoff.demand?.standard_offer_id, "so-lunch");
 });
 
 test("buildConnectionHandoff hides emails until kitchen commits", () => {

@@ -66,6 +66,19 @@ export function buildConnectionHandoff({
     }))
     .filter((row) => row.login_email);
 
+  const demand =
+    demandApi != null
+      ? {
+          seeker_demand_id: demandApi.seeker_demand_id,
+          status: demandApi.status,
+          need_description: demandApi.need_description,
+          verbal_notes: demandApi.verbal_notes ?? "",
+          location_label: demandApi.location_label ?? "",
+          standard_offer_id: demandApi.standard_offer_id ?? null,
+          recorded_at: demandApi.created_at
+        }
+      : null;
+
   const base = {
     order_code: orderCode,
     status,
@@ -77,7 +90,8 @@ export function buildConnectionHandoff({
     meal_units: demandApi?.meal_units ?? null,
     price_inr: demandApi?.price_inr ?? null,
     locality_key: demandApi?.locality_key ?? kitchenApi?.locality_key ?? "",
-    seeker_demand_id: demandApi?.seeker_demand_id ?? null
+    seeker_demand_id: demandApi?.seeker_demand_id ?? null,
+    demand
   };
 
   if (status !== "ready") {
