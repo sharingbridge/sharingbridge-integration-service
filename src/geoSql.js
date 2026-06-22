@@ -1,5 +1,3 @@
-const DEFAULT_GIS_SCHEMA = "extensions";
-
 const SCHEMA_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
@@ -8,13 +6,17 @@ const SCHEMA_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
  */
 export function resolveGisSchema(env = process.env) {
   const raw = env.GIS_SCHEMA?.trim();
-  const name = raw || DEFAULT_GIS_SCHEMA;
-  if (name.length > 63 || !SCHEMA_NAME_RE.test(name)) {
+  if (!raw) {
     throw new Error(
-      `GIS_SCHEMA must be a valid SQL identifier (got ${JSON.stringify(name)}).`
+      "GIS_SCHEMA is required — set the spatial extension schema to match database DDL (see configuration/environment-variables.md)."
     );
   }
-  return name;
+  if (raw.length > 63 || !SCHEMA_NAME_RE.test(raw)) {
+    throw new Error(
+      `GIS_SCHEMA must be a valid SQL identifier (got ${JSON.stringify(raw)}).`
+    );
+  }
+  return raw;
 }
 
 export const GIS_SCHEMA = resolveGisSchema();

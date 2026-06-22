@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gisFn, resolveGisSchema } from "../src/geoSql.js";
 
-test("resolveGisSchema defaults to extensions", () => {
-  assert.equal(resolveGisSchema({}), "extensions");
+test("resolveGisSchema requires GIS_SCHEMA", () => {
+  assert.throws(() => resolveGisSchema({}));
+  assert.throws(() => resolveGisSchema({ GIS_SCHEMA: "" }));
+  assert.throws(() => resolveGisSchema({ GIS_SCHEMA: "   " }));
 });
 
 test("resolveGisSchema reads GIS_SCHEMA", () => {
   assert.equal(resolveGisSchema({ GIS_SCHEMA: "gis_ext" }), "gis_ext");
+  assert.equal(resolveGisSchema({ GIS_SCHEMA: "extensions" }), "extensions");
 });
 
 test("resolveGisSchema rejects invalid identifiers", () => {
@@ -16,5 +19,5 @@ test("resolveGisSchema rejects invalid identifiers", () => {
 });
 
 test("gisFn qualifies with configured schema", () => {
-  assert.equal(gisFn("ST_DWithin"), `${resolveGisSchema()}.ST_DWithin`);
+  assert.equal(gisFn("ST_DWithin"), "extensions.ST_DWithin");
 });

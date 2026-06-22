@@ -40,6 +40,8 @@ services:
         value: "2"
       - key: INITIATOR_NEIGHBOURHOOD_RADIUS_M
         value: "5000"
+      - key: GIS_SCHEMA
+        value: extensions
       - key: NOMINATIM_USER_AGENT
         value: SharingBridge-Integration-Service/1.0
       - key: WEB_CORS_ORIGINS

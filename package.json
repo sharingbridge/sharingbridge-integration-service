@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test",
+    "test": "node --import ./test/preload.mjs --test",
     "db:backfill-order-intent-geo": "node scripts/backfill-order-intent-geo.mjs"
   },
   "dependencies": {
