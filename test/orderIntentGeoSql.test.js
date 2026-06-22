@@ -89,3 +89,18 @@ test("buildOrderIntentListSql includes delivered_at column", () => {
   });
   assert.match(text, /delivered_at/);
 });
+
+test("buildOrderIntentListSql coordinator locality matches column or payload key", () => {
+  const { text, values } = buildOrderIntentListSql({
+    neighbourhoodScope: {
+      type: "locality",
+      localityKey: "IN:TN:600097"
+    },
+    viewerUserId: "coord-1",
+    role: "coordinator"
+  });
+  assert.match(text, /COALESCE/);
+  assert.match(text, /payload->>'locality_key'/);
+  assert.equal(values.includes("IN:TN:600097"), true);
+  assert.equal(values.includes("IN:TN:600097:%"), true);
+});

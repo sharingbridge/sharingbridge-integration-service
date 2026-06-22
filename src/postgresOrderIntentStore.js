@@ -81,7 +81,7 @@ function rowToRecord(row) {
     location_lng: payloadLng ?? geoLng,
     location_label:
       typeof payload.location_label === "string" ? payload.location_label : "",
-    locality_key: payloadKey || columnKey,
+    locality_key: columnKey || payloadKey,
     location_description:
       typeof payload.location_description === "string"
         ? payload.location_description

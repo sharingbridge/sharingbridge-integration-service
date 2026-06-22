@@ -7,6 +7,14 @@ const BASE_COLUMNS = `order_intent_id, user_id, pack_id, status, payload, create
   ST_Y(location::geometry) AS geo_lat,
   ST_X(location::geometry) AS geo_lng`;
 
+/** Column first, then JSONB payload — matches how filters should treat stored keys. */
+function effectiveLocalityKeySql() {
+  return `COALESCE(
+    NULLIF(TRIM(locality_key), ''),
+    NULLIF(TRIM(payload->>'locality_key'), '')
+  )`;
+}
+
 /**
  * @param {{ nearLat: number, nearLng: number, lngParam: string, latParam: string }} viewerNear
  */
@@ -89,12 +97,12 @@ export function buildOrderIntentListSql(opts) {
   } else if (neighbourhoodScope.type === "locality") {
     const keyParam = add(neighbourhoodScope.localityKey);
     const prefixParam = add(`${neighbourhoodScope.localityKey}:%`);
+    const effectiveKey = effectiveLocalityKeySql();
     const localityMatch = `(
-      locality_key IS NOT NULL
-      AND locality_key <> ''
+      ${effectiveKey} IS NOT NULL
       AND (
-        locality_key = ${keyParam}
-        OR locality_key LIKE ${prefixParam}
+        ${effectiveKey} = ${keyParam}
+        OR ${effectiveKey} LIKE ${prefixParam}
       )
     )`;
     if (!isCoordinator && viewer) {
