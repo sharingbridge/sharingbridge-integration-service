@@ -28,8 +28,8 @@ test("buildOrderIntentListSql donor near uses ST_DWithin and viewer OR", () => {
     role: "donor"
   });
   assert.match(text, /ST_DWithin/);
-  assert.match(text, /OR location IS NULL/);
   assert.match(text, /user_id = \$/);
+  assert.doesNotMatch(text, /OR location IS NULL/);
   assert.equal(values.includes(12.97), true);
   assert.equal(values.includes(80.22), true);
   assert.equal(values.includes(5000), true);
@@ -48,7 +48,7 @@ test("buildOrderIntentListSql coordinator without scope has no user_id lock", ()
   assert.equal(values[0], 25);
 });
 
-test("buildOrderIntentListSql coordinator near uses ST_DWithin", () => {
+test("buildOrderIntentListSql coordinator near uses pure geo radius", () => {
   const { text } = buildOrderIntentListSql({
     neighbourhoodScope: {
       type: "near",
@@ -60,6 +60,8 @@ test("buildOrderIntentListSql coordinator near uses ST_DWithin", () => {
     role: "coordinator"
   });
   assert.match(text, /ST_DWithin/);
+  assert.doesNotMatch(text, /OR location IS NULL/);
+  assert.doesNotMatch(text, /user_id =/);
 });
 
 test("buildOrderIntentListSql near scope returns distance_m and sorts ascending", () => {

@@ -69,7 +69,12 @@ export function offerAppliesToLocality(offerKey, userKey) {
 }
 
 /**
- * True when a record matches a locality filter (exact or descendant of filter).
+ * True when a record's locality key equals the filter or is a descendant
+ * (deeper segment chain). Examples with record IN:TN:600097:
+ *   filter IN        → match
+ *   filter IN:TN     → match
+ *   filter IN:TN:600097 → match
+ *   filter IN:KA     → no match
  * @param {string} recordKey
  * @param {string} filterKey
  */

@@ -32,6 +32,15 @@ test("recordMatchesLocalityFilter includes descendants of filter key", () => {
   assert.equal(recordMatchesLocalityFilter("IN:TN", "IN:TN:600115"), false);
 });
 
+test("recordMatchesLocalityFilter respects filter depth IN, IN:TN, postal", () => {
+  const record = "IN:TN:600097";
+  assert.equal(recordMatchesLocalityFilter(record, "IN"), true);
+  assert.equal(recordMatchesLocalityFilter(record, "IN:TN"), true);
+  assert.equal(recordMatchesLocalityFilter(record, "IN:TN:600097"), true);
+  assert.equal(recordMatchesLocalityFilter(record, "IN:TN:600001"), false);
+  assert.equal(recordMatchesLocalityFilter(record, "IN:KA"), false);
+});
+
 test("resolveStandardOffersForLocality prefers postal over state for same offer id", () => {
   const resolved = resolveStandardOffersForLocality(
     FIXTURE_STANDARD_OFFERS,

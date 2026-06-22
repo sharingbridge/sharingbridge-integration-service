@@ -39,7 +39,7 @@ function filterRowsBySince(rows, sinceMs) {
   });
 }
 
-function demandRowMatchesNeighbourhood(row, scope, viewerLocalityKey = null) {
+function demandRowMatchesNeighbourhood(row, scope) {
   if (!scope) {
     return true;
   }
@@ -56,19 +56,14 @@ function demandRowMatchesNeighbourhood(row, scope, viewerLocalityKey = null) {
       scope
     );
   }
-  if (viewerLocalityKey) {
-    return recordMatchesLocalityFilter(row.locality_key, viewerLocalityKey);
-  }
   return false;
 }
 
-function filterRowsByNeighbourhood(rows, scope, viewerLocalityKey = null) {
+function filterRowsByNeighbourhood(rows, scope) {
   if (!scope) {
     return rows;
   }
-  return rows.filter((row) =>
-    demandRowMatchesNeighbourhood(row, scope, viewerLocalityKey)
-  );
+  return rows.filter((row) => demandRowMatchesNeighbourhood(row, scope));
 }
 
 export async function buildDemandBoardSnapshot({
@@ -76,19 +71,14 @@ export async function buildDemandBoardSnapshot({
   seekerDemandStore,
   marketplaceStore,
   sinceMs = null,
-  neighbourhoodScope = null,
-  viewerLocalityKey = null
+  neighbourhoodScope = null
 } = {}) {
   const rows = seekerDemandStore
     ? await seekerDemandStore.listRecent({ limit: 100 })
     : [];
   let formatted = rows.map(formatSeekerDemandForApi);
   formatted = filterRowsBySince(formatted, sinceMs);
-  formatted = filterRowsByNeighbourhood(
-    formatted,
-    neighbourhoodScope,
-    viewerLocalityKey
-  );
+  formatted = filterRowsByNeighbourhood(formatted, neighbourhoodScope);
   const schemaReady = seekerDemandStore?.enabled !== false;
   const activeOfferBuckets = activeOfferBucketsFromSeekerDemands(formatted);
   let pledgesRaw = marketplaceStore
@@ -101,16 +91,8 @@ export async function buildDemandBoardSnapshot({
     : [];
   pledgesRaw = filterRowsBySince(pledgesRaw, sinceMs);
   vendorBidsRaw = filterRowsBySince(vendorBidsRaw, sinceMs);
-  pledgesRaw = filterRowsByNeighbourhood(
-    pledgesRaw,
-    neighbourhoodScope,
-    viewerLocalityKey
-  );
-  vendorBidsRaw = filterRowsByNeighbourhood(
-    vendorBidsRaw,
-    neighbourhoodScope,
-    viewerLocalityKey
-  );
+  pledgesRaw = filterRowsByNeighbourhood(pledgesRaw, neighbourhoodScope);
+  vendorBidsRaw = filterRowsByNeighbourhood(vendorBidsRaw, neighbourhoodScope);
   const pledges = tagMarketplaceOfferMatch(pledgesRaw, activeOfferBuckets);
   const vendorBids = tagMarketplaceOfferMatch(
     vendorBidsRaw,

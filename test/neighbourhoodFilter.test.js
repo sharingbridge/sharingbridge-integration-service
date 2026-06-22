@@ -3,9 +3,18 @@ import assert from "node:assert/strict";
 import {
   filterRecordsByNeighbourhood,
   haversineDistanceM,
-  intentMatchesNeighbourhood
+  intentMatchesNeighbourhood,
+  resolveNeighbourhoodScope
 } from "../src/neighbourhoodFilter.js";
 import { FIXTURE_LOCALITY_POSTAL } from "./fixtures/standardOffersCatalog.js";
+
+test("resolveNeighbourhoodScope prefers geo coords over locality_key", () => {
+  const params = new URLSearchParams(
+    "near_lat=12.94&near_lng=80.24&locality_key=IN:TN:600115"
+  );
+  const scope = resolveNeighbourhoodScope("coordinator", params);
+  assert.equal(scope?.type, "near");
+});
 
 test("haversineDistanceM is zero for same point", () => {
   assert.equal(haversineDistanceM(12.97, 80.22, 12.97, 80.22), 0);
@@ -37,7 +46,7 @@ test("intentMatchesNeighbourhood uses radius", () => {
   );
 });
 
-test("filterRecordsByNeighbourhood near scope includes other donors without GPS", () => {
+test("filterRecordsByNeighbourhood near scope keeps viewer rows without GPS only", () => {
   const records = [
     { user_id: "alice", pack_id: "a" },
     { user_id: "bob", pack_id: "b" }
@@ -48,7 +57,8 @@ test("filterRecordsByNeighbourhood near scope includes other donors without GPS"
     "alice",
     "donor"
   );
-  assert.equal(filtered.length, 2);
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].user_id, "alice");
 });
 
 test("intentMatchesNeighbourhood locality scope includes descendant postal keys", () => {

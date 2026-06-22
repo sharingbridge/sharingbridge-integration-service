@@ -42,6 +42,7 @@ export function intentMatchesNeighbourhood(record, scope) {
 }
 
 /**
+ * Geo coords take precedence over locality_key when both are present.
  * @param {URLSearchParams} params
  * @param {string} role
  * @returns {{ type: "near", nearLat: number, nearLng: number, radiusM: number } | { type: "locality", localityKey: string } | null}
@@ -85,8 +86,7 @@ export function filterRecordsByNeighbourhood(
       if (scope.type === "locality") {
         return recordMatchesLocalityFilter(record.locality_key, scope.localityKey);
       }
-      // No handover GPS — still visible in the time window for near (By area).
-      return scope.type === "near";
+      return false;
     }
     return intentMatchesNeighbourhood(record, scope);
   });

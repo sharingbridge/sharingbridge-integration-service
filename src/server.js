@@ -346,8 +346,7 @@ export function createIntegrationServer({
           seekerDemandStore,
           marketplaceStore,
           sinceMs: isCoordinatorApiRole(auth.role) ? sinceMs : null,
-          neighbourhoodScope,
-          viewerLocalityKey
+          neighbourhoodScope
         });
         const listMaxRows = getOrderIntentListMaxRows();
         snapshot.since = sinceMs != null ? formatSinceQuery(sinceMs) : undefined;
