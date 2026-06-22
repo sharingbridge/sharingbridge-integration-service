@@ -1,4 +1,4 @@
-const DEFAULT_GIS_SCHEMA = "sb_gis";
+const DEFAULT_GIS_SCHEMA = "extensions";
 
 const SCHEMA_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 

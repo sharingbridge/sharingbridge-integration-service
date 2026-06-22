@@ -11,7 +11,7 @@ test("buildOrderIntentListSql donor own_only applies user_id and since", () => {
   });
   assert.match(text, /updated_at >= \$1/);
   assert.match(text, /user_id = \$2/);
-  assert.doesNotMatch(text, /sb_gis\.ST_DWithin/);
+  assert.doesNotMatch(text, /extensions\.ST_DWithin/);
   assert.equal(values[1], "alice");
 });
 
@@ -27,7 +27,7 @@ test("buildOrderIntentListSql donor near uses ST_DWithin and viewer OR", () => {
     viewerUserId: "alice",
     role: "donor"
   });
-  assert.match(text, /sb_gis\.ST_DWithin/);
+  assert.match(text, /extensions\.ST_DWithin/);
   assert.match(text, /user_id = \$/);
   assert.doesNotMatch(text, /OR location IS NULL/);
   assert.equal(values.includes(12.97), true);
@@ -59,7 +59,7 @@ test("buildOrderIntentListSql coordinator near uses pure geo radius", () => {
     viewerUserId: "coord-1",
     role: "coordinator"
   });
-  assert.match(text, /sb_gis\.ST_DWithin/);
+  assert.match(text, /extensions\.ST_DWithin/);
   assert.doesNotMatch(text, /OR location IS NULL/);
   assert.doesNotMatch(text, /user_id =/);
 });
@@ -76,7 +76,7 @@ test("buildOrderIntentListSql near scope returns distance_m and sorts ascending"
     role: "donor",
     maxRows: 50
   });
-  assert.match(text, /sb_gis\.ST_Distance/);
+  assert.match(text, /extensions\.ST_Distance/);
   assert.match(text, /distance_m/);
   assert.match(text, /ORDER BY distance_m ASC NULLS LAST/);
   assert.match(text, /LIMIT \$/);

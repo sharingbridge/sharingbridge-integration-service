@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gisFn, resolveGisSchema } from "../src/geoSql.js";
 
-test("resolveGisSchema defaults to sb_gis", () => {
-  assert.equal(resolveGisSchema({}), "sb_gis");
+test("resolveGisSchema defaults to extensions", () => {
+  assert.equal(resolveGisSchema({}), "extensions");
 });
 
 test("resolveGisSchema reads GIS_SCHEMA", () => {
