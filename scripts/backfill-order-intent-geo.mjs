@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Backfill order_intents.locality_key and location from payload JSONB.
- * Requires PostGIS columns (schema.sql or schema-postgis-migration.sql).
+ * Requires geo columns (configuration/schema.sql).
  */
 import "dotenv/config";
 import pg from "pg";
@@ -26,7 +26,7 @@ async function main() {
   try {
     const sql = await fs.readFile(migrationPath, "utf8");
     await pool.query(sql);
-    console.log("PostGIS migration + backfill applied.");
+    console.log("Geo migration + backfill applied.");
   } finally {
     await pool.end();
   }

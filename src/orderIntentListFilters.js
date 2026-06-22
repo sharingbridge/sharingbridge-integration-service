@@ -33,7 +33,7 @@ function attachDistanceMetres(records, scope) {
 }
 
 /**
- * File-backed store only (unit tests). Production uses PostGIS SQL — see postgresOrderIntentStore.
+ * File-backed store only (unit tests). Production uses geo SQL — see sqlOrderIntentStore.
  */
 export function applyDashboardListFilters(records, opts) {
   let rows = sortOrderIntentsNewestFirst(records);

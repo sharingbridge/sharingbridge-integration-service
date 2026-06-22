@@ -1,11 +1,15 @@
 import { getOrderIntentListMaxRows } from "./orderIntentListMaxRows.js";
 import { isCoordinatorApiRole } from "./orderIntentViews.js";
+import {
+  gisFn,
+  gisPointFromParams
+} from "./geoSql.js";
 
 const BASE_COLUMNS = `order_intent_id, user_id, pack_id, status, payload, created_at, updated_at,
   locality_key,
   delivered_at,
-  ST_Y(location::geometry) AS geo_lat,
-  ST_X(location::geometry) AS geo_lng`;
+  ${gisFn("ST_Y")}(location::geometry) AS geo_lat,
+  ${gisFn("ST_X")}(location::geometry) AS geo_lng`;
 
 /** Column first, then JSONB payload — matches how filters should treat stored keys. */
 function effectiveLocalityKeySql() {
@@ -20,11 +24,15 @@ function effectiveLocalityKeySql() {
  */
 function distanceMetresSelect(viewerNear) {
   const { lngParam, latParam } = viewerNear;
+  const viewerPoint = gisPointFromParams(
+    `${lngParam}::double precision`,
+    `${latParam}::double precision`
+  );
   return `CASE
     WHEN location IS NOT NULL THEN ROUND(
-      ST_Distance(
+      ${gisFn("ST_Distance")}(
         location,
-        ST_SetSRID(ST_MakePoint(${lngParam}::double precision, ${latParam}::double precision), 4326)::geography
+        ${viewerPoint}
       )::numeric
     )::integer
     ELSE NULL
@@ -84,10 +92,10 @@ export function buildOrderIntentListSql(opts) {
     nearLngParam = add(neighbourhoodScope.nearLng);
     nearLatParam = add(neighbourhoodScope.nearLat);
     const radiusParam = add(neighbourhoodScope.radiusM);
-    const viewerPoint = `ST_SetSRID(ST_MakePoint(${nearLngParam}, ${nearLatParam}), 4326)::geography`;
+    const viewerPoint = gisPointFromParams(nearLngParam, nearLatParam);
     const withinRadius = `(
       location IS NOT NULL
-      AND ST_DWithin(location, ${viewerPoint}, ${radiusParam})
+      AND ${gisFn("ST_DWithin")}(location, ${viewerPoint}, ${radiusParam})
     )`;
     if (!isCoordinator && viewer) {
       where.push(`(user_id = ${add(viewer)} OR ${withinRadius})`);

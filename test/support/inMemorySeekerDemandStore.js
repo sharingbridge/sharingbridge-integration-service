@@ -3,7 +3,7 @@ import {
   locationFromPayload
 } from "../../src/orderIntentLocation.js";
 
-/** In-memory seeker demands for route tests — not used in production (Postgres only). */
+/** In-memory seeker demands for route tests — not used in production. */
 export class InMemorySeekerDemandStore {
   constructor() {
     this.enabled = true;

@@ -25,7 +25,7 @@ import {
   resolveAuthenticatedUserId
 } from "./authContext.js";
 import { OrderIntentStore } from "./orderIntentStore.js";
-import { PostgresOrderIntentStore } from "./postgresOrderIntentStore.js";
+import { SqlOrderIntentStore } from "./sqlOrderIntentStore.js";
 import {
   buildOrderIntentRecord,
   formatOrderIntentForApi,
@@ -99,7 +99,7 @@ function readJsonBody(req) {
 /**
  * Build an http.Server wired up against the given preferences repository.
  * Tests inject a LocalPreferencesRepository with a temp-directory store.
- * Production startup always uses UserServicePreferencesRepository (Postgres via user-service).
+ * Production startup always uses UserServicePreferencesRepository (user-service).
  */
 export function createIntegrationServer({
   preferencesRepository,
@@ -1424,7 +1424,7 @@ async function buildDefaultOrderIntentStore() {
       "DATABASE_URL is required. See configuration/database.md."
     );
   }
-  const store = await PostgresOrderIntentStore.create(databaseUrl);
+  const store = await SqlOrderIntentStore.create(databaseUrl);
   await store.init();
   return store;
 }
@@ -1434,10 +1434,10 @@ async function buildDefaultMarketplaceStore() {
   if (!databaseUrl) {
     return null;
   }
-  const { PostgresMarketplaceStore } = await import(
-    "./postgresMarketplaceStore.js"
+  const { SqlMarketplaceStore } = await import(
+    "./sqlMarketplaceStore.js"
   );
-  const store = await PostgresMarketplaceStore.create(databaseUrl);
+  const store = await SqlMarketplaceStore.create(databaseUrl);
   await store.init();
   return store;
 }
@@ -1447,10 +1447,10 @@ async function buildDefaultSeekerDemandStore() {
   if (!databaseUrl?.trim()) {
     return null;
   }
-  const { PostgresSeekerDemandStore } = await import(
-    "./postgresSeekerDemandStore.js"
+  const { SqlSeekerDemandStore } = await import(
+    "./sqlSeekerDemandStore.js"
   );
-  const store = await PostgresSeekerDemandStore.create(databaseUrl);
+  const store = await SqlSeekerDemandStore.create(databaseUrl);
   await store.init();
   return store;
 }
@@ -1460,17 +1460,17 @@ async function buildDefaultDeviceTokenStore() {
   if (!databaseUrl) {
     return null;
   }
-  const { PostgresDeviceTokenStore } = await import(
-    "./postgresDeviceTokenStore.js"
+  const { SqlDeviceTokenStore } = await import(
+    "./sqlDeviceTokenStore.js"
   );
-  return PostgresDeviceTokenStore.create(databaseUrl);
+  return SqlDeviceTokenStore.create(databaseUrl);
 }
 
 function buildDefaultPreferencesRepository() {
   const baseUrl = process.env.USER_SERVICE_BASE_URL?.trim();
   if (!baseUrl) {
     throw new Error(
-      "USER_SERVICE_BASE_URL is required. Donor presets are stored in Postgres via user-service."
+      "USER_SERVICE_BASE_URL is required. Donor presets are stored via user-service."
     );
   }
   return new UserServicePreferencesRepository({ baseUrl });
@@ -1498,7 +1498,7 @@ if (isMainModule) {
         server.listen(DEFAULT_PORT, () => {
           logListenMessage(
             console,
-            `Integration service listening on ${DEFAULT_PORT} (PostgreSQL)`
+            `Integration service listening on ${DEFAULT_PORT}`
           );
           logStartupDiagnostics(buildStartupConfig());
         });

@@ -9,6 +9,7 @@
 import "dotenv/config";
 import pg from "pg";
 import { derivePostalLocalityKey } from "../src/postalGeocode.js";
+import { gisFn } from "../src/geoSql.js";
 
 const SLEEP_MS = 1100;
 
@@ -19,8 +20,8 @@ function sleep(ms) {
 async function backfillTable(pool, table, idColumn) {
   const { rows } = await pool.query(
     `SELECT ${idColumn},
-            ST_Y(location::geometry) AS lat,
-            ST_X(location::geometry) AS lng
+            ${gisFn("ST_Y")}(location::geometry) AS lat,
+            ${gisFn("ST_X")}(location::geometry) AS lng
      FROM ${table}
      WHERE location IS NOT NULL
        AND COALESCE(NULLIF(TRIM(locality_key), ''), NULLIF(TRIM(payload->>'locality_key'), '')) IS NULL`

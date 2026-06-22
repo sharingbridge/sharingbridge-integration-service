@@ -156,7 +156,7 @@ export class OrderIntentStore {
     return rows;
   }
 
-  /** Same filters as Postgres `listForDashboard` (in-memory for tests). */
+  /** Same filters as SQL `listForDashboard` (in-memory for tests). */
   listForDashboard(opts = {}) {
     return applyDashboardListFilters(
       this.listAll({ userIdFilter: opts.userIdFilter ?? null }),

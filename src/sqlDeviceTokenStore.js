@@ -4,7 +4,7 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-export class PostgresDeviceTokenStore {
+export class SqlDeviceTokenStore {
   constructor(pool, { enabled = true } = {}) {
     this.pool = pool;
     this.enabled = enabled;
@@ -12,7 +12,7 @@ export class PostgresDeviceTokenStore {
 
   static async create(connectionString) {
     if (!isNonEmptyString(connectionString)) {
-      throw new Error("DATABASE_URL is required for PostgresDeviceTokenStore.");
+      throw new Error("DATABASE_URL is required for SqlDeviceTokenStore.");
     }
     const pool = new pg.Pool({ connectionString: connectionString.trim() });
     const client = await pool.connect();
@@ -29,7 +29,7 @@ export class PostgresDeviceTokenStore {
     } finally {
       client.release();
     }
-    return new PostgresDeviceTokenStore(pool, { enabled });
+    return new SqlDeviceTokenStore(pool, { enabled });
   }
 
   unavailableError() {

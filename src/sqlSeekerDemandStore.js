@@ -4,6 +4,7 @@ import {
   locationFromPayload
 } from "./orderIntentLocation.js";
 import { geoColumnsFromRecord } from "./orderIntentGeoSql.js";
+import { locationSqlFragment, gisFn } from "./geoSql.js";
 import { probeEcoKitchenPhase3 } from "./ecoKitchenPhase3.js";
 import { isValidOrderCode } from "./orderCode.js";
 
@@ -76,16 +77,7 @@ function recordToPayload(record) {
   };
 }
 
-function locationSqlFragment(lngParam, latParam) {
-  return `CASE
-    WHEN ${lngParam}::double precision IS NOT NULL
-     AND ${latParam}::double precision IS NOT NULL
-    THEN ST_SetSRID(ST_MakePoint(${lngParam}::double precision, ${latParam}::double precision), 4326)::geography
-    ELSE NULL
-  END`;
-}
-
-export class PostgresSeekerDemandStore {
+export class SqlSeekerDemandStore {
   constructor(pool, { enabled = true, phase3 = null } = {}) {
     this.pool = pool;
     this.enabled = enabled;
@@ -99,7 +91,7 @@ export class PostgresSeekerDemandStore {
 
   static async create(connectionString) {
     if (!isNonEmptyString(connectionString)) {
-      throw new Error("DATABASE_URL is required for PostgresSeekerDemandStore.");
+      throw new Error("DATABASE_URL is required for SqlSeekerDemandStore.");
     }
     const pool = new pg.Pool({ connectionString: connectionString.trim() });
     const client = await pool.connect();
@@ -117,7 +109,7 @@ export class PostgresSeekerDemandStore {
       client.release();
     }
     const phase3 = enabled ? await probeEcoKitchenPhase3(pool) : null;
-    return new PostgresSeekerDemandStore(pool, { enabled, phase3 });
+    return new SqlSeekerDemandStore(pool, { enabled, phase3 });
   }
 
   async init() {}
@@ -244,8 +236,8 @@ export class PostgresSeekerDemandStore {
     const { phaseCols, deliveredCol } = this.selectColumnFragments();
     const geoSql = `SELECT seeker_demand_id, reported_by_user_id, status, meal_units, payload,
               locality_key, created_at, updated_at${phaseCols}${deliveredCol},
-              ST_Y(location::geometry) AS geo_lat,
-              ST_X(location::geometry) AS geo_lng
+              ${gisFn("ST_Y")}(location::geometry) AS geo_lat,
+              ${gisFn("ST_X")}(location::geometry) AS geo_lng
        FROM seeker_demands
        ${where}
        ORDER BY updated_at DESC

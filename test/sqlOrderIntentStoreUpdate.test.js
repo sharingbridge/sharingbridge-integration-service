@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PostgresOrderIntentStore } from "../src/postgresOrderIntentStore.js";
+import { SqlOrderIntentStore } from "../src/sqlOrderIntentStore.js";
 
 function baseRecord(overrides = {}) {
   return {
@@ -64,7 +64,7 @@ test("updateRecordForUser uses contiguous $1..$9 placeholders for geo", async ()
     }
   };
 
-  const store = new PostgresOrderIntentStore(pool);
+  const store = new SqlOrderIntentStore(pool);
   store.findById = async () => existing;
 
   const saved = await store.updateRecordForUser("alice", baseRecord());

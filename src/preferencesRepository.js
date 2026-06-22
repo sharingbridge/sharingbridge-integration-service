@@ -1,7 +1,7 @@
 /**
  * Repository abstraction for donor preferences.
  *
- * Production: UserServicePreferencesRepository (USER_SERVICE_BASE_URL → Postgres).
+ * Production: UserServicePreferencesRepository (USER_SERVICE_BASE_URL).
  * Tests: LocalPreferencesRepository + PreferencesStore (temp file only).
  *
  * Contract:

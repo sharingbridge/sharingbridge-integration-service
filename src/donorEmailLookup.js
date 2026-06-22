@@ -1,5 +1,5 @@
 /**
- * Resolve donor emails for coordinator dashboard (shared Postgres `users` table).
+ * Resolve donor emails for coordinator dashboard (shared `users` table).
  */
 
 export async function lookupDonorEmailsByUserId(pool, userIds) {

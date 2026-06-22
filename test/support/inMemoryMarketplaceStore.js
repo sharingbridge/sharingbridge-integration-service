@@ -1,6 +1,6 @@
 import { fixtureStandardOfferRecords } from "../fixtures/standardOffersCatalog.js";
 
-/** In-memory marketplace for route tests — not used in production (Postgres only). */
+/** In-memory marketplace for route tests — not used in production. */
 export class InMemoryMarketplaceStore {
   constructor({ seedStandardOffers = true } = {}) {
     this.pledges = [];

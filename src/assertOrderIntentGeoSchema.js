@@ -1,8 +1,10 @@
+import { gisFn, gisPointFromParams } from "./geoSql.js";
+
 const SCHEMA_HINT =
-  "Run sharingbridge/configuration/schema.sql (new DB), schema-postgis-migration.sql (geo), and schema-delivered-at-migration.sql (delivered_at), then restart integration-service.";
+  "Run sharingbridge/configuration/schema.sql (new DB) and schema-delivered-at-migration.sql (delivered_at), then restart integration-service.";
 
 /**
- * Fail fast at startup if PostGIS geo columns are missing.
+ * Fail fast at startup if geo columns / spatial extension are unavailable.
  * @param {import("pg").Pool} pool
  */
 export async function assertOrderIntentGeoSchema(pool) {
@@ -34,17 +36,18 @@ export async function assertOrderIntentGeoSchema(pool) {
     );
   }
 
+  const point = gisPointFromParams("0", "0");
   try {
     await pool.query(
-      `SELECT ST_DWithin(
-         ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography,
-         ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography,
+      `SELECT ${gisFn("ST_DWithin")}(
+         ${point},
+         ${point},
          1
        )`
     );
   } catch (error) {
     throw new Error(
-      `PostGIS is required for order intent geo queries (${error?.message || "unknown error"}). ${SCHEMA_HINT}`
+      `Spatial geo queries are unavailable (${error?.message || "unknown error"}). ${SCHEMA_HINT}`
     );
   }
 }

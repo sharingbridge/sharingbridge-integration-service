@@ -6,6 +6,7 @@ import {
   buildOrderIntentListSql,
   geoColumnsFromRecord
 } from "./orderIntentGeoSql.js";
+import { locationSqlFragment } from "./geoSql.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -128,16 +129,7 @@ function parseDistanceM(value) {
   return Number.isFinite(n) ? Math.round(n) : null;
 }
 
-function locationSqlFragment(lngParam, latParam) {
-  return `CASE
-    WHEN ${lngParam}::double precision IS NOT NULL
-     AND ${latParam}::double precision IS NOT NULL
-    THEN ST_SetSRID(ST_MakePoint(${lngParam}::double precision, ${latParam}::double precision), 4326)::geography
-    ELSE NULL
-  END`;
-}
-
-export class PostgresOrderIntentStore {
+export class SqlOrderIntentStore {
   constructor(pool, { phase3 = null } = {}) {
     this.pool = pool;
     this.phase3 = phase3 ?? {
@@ -149,7 +141,7 @@ export class PostgresOrderIntentStore {
 
   static async create(connectionString) {
     if (!isNonEmptyString(connectionString)) {
-      throw new Error("DATABASE_URL is required for PostgresOrderIntentStore.");
+      throw new Error("DATABASE_URL is required for SqlOrderIntentStore.");
     }
     const pool = new pg.Pool({ connectionString: connectionString.trim() });
     const client = await pool.connect();
@@ -160,7 +152,7 @@ export class PostgresOrderIntentStore {
       client.release();
     }
     const phase3 = await probeEcoKitchenPhase3(pool);
-    return new PostgresOrderIntentStore(pool, { phase3 });
+    return new SqlOrderIntentStore(pool, { phase3 });
   }
 
   async init() {}

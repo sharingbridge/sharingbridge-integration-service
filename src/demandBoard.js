@@ -115,7 +115,7 @@ export async function buildDemandBoardSnapshot({
     role: role ?? null,
     message: schemaReady
       ? marketplaceLive
-        ? "Seeker demands, pledges, and vendor bids are loaded from Postgres. Allocation hints are computed; auto-assign is not live yet."
+        ? "Seeker demands, pledges, and vendor bids are loaded from the database. Allocation hints are computed; auto-assign is not live yet."
         : "Seeker demands are available; marketplace pledge and vendor-bid tables are not configured."
       : "Seeker demand storage is not configured.",
     standard_offers: standardOffers,

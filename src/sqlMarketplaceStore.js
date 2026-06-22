@@ -66,7 +66,7 @@ function standardOfferRowToRecord(row) {
   };
 }
 
-export class PostgresMarketplaceStore {
+export class SqlMarketplaceStore {
   constructor(pool, { enabled = true, phase3 = null } = {}) {
     this.pool = pool;
     this.enabled = enabled;
@@ -79,7 +79,7 @@ export class PostgresMarketplaceStore {
 
   static async create(connectionString) {
     if (!isNonEmptyString(connectionString)) {
-      throw new Error("DATABASE_URL is required for PostgresMarketplaceStore.");
+      throw new Error("DATABASE_URL is required for SqlMarketplaceStore.");
     }
     const pool = new pg.Pool({ connectionString: connectionString.trim() });
     const client = await pool.connect();
@@ -101,7 +101,7 @@ export class PostgresMarketplaceStore {
       client.release();
     }
     const phase3 = enabled ? await probeEcoKitchenPhase3(pool) : null;
-    return new PostgresMarketplaceStore(pool, { enabled, phase3 });
+    return new SqlMarketplaceStore(pool, { enabled, phase3 });
   }
 
   async init() {}

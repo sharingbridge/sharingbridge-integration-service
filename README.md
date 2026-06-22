@@ -57,7 +57,7 @@ Local endpoints:
 - `GET  http://localhost:8080/health`
 
 The HTTP server is exposed as a factory (`createIntegrationServer`) in
-`src/server.js`. Tests inject temp `PreferencesStore` or `test/support/inMemoryMarketplaceStore.js`; production uses Postgres only. Standard-offers test catalog: `test/fixtures/standardOffersCatalog.js` (mirror of `configuration/seed-standard-offers.sql`).
+`src/server.js`. Tests inject temp `PreferencesStore` or `test/support/inMemoryMarketplaceStore.js`; production uses SQL stores only. Standard-offers test catalog: `test/fixtures/standardOffersCatalog.js` (mirror of `configuration/seed-standard-offers.sql`).
 
 ### Auth context
 
@@ -84,7 +84,7 @@ See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbrid
 
 ### Donor presets
 
-Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in Postgres). No file-backed preset store at runtime. Marketplace + eco kitchen SQL **M1–M5**: [database-setup-sequence.md](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/database-setup-sequence.md).
+Requires **`USER_SERVICE_BASE_URL`** — integration forwards to user-service (`donor_presets` in the database). No file-backed preset store at runtime. Marketplace + eco kitchen SQL **M1–M5**: [database-setup-sequence.md](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/database-setup-sequence.md).
 
 ## Contributing
 
