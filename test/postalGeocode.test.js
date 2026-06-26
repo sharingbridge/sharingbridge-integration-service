@@ -1,26 +1,39 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { formatLocalityKeyFromNominatim } from "../src/postalGeocode.js";
+import {
+  formatDisplayAddressFromNominatim,
+  formatLocalityKeyFromNominatim
+} from "../src/postalGeocode.js";
 
-test("formatLocalityKeyFromNominatim builds IN:TN:postal from Chennai sample", () => {
+test("formatLocalityKeyFromNominatim builds postal key", () => {
   const key = formatLocalityKeyFromNominatim({
     address: {
       country_code: "in",
       state: "Tamil Nadu",
-      "ISO3166-2-lvl4": "IN-TN",
       postcode: "600115"
     }
   });
   assert.equal(key, "IN:TN:600115");
 });
 
-test("formatLocalityKeyFromNominatim falls back to state when postcode missing", () => {
-  const key = formatLocalityKeyFromNominatim({
+test("formatDisplayAddressFromNominatim prefers display_name", () => {
+  const text = formatDisplayAddressFromNominatim({
+    display_name: "12 Temple Street, Chennai, Tamil Nadu, India"
+  });
+  assert.equal(text, "12 Temple Street, Chennai, Tamil Nadu, India");
+});
+
+test("formatDisplayAddressFromNominatim builds from address parts", () => {
+  const text = formatDisplayAddressFromNominatim({
     address: {
-      country_code: "in",
+      road: "Temple Street",
+      suburb: "Adyar",
+      city: "Chennai",
+      postcode: "600020",
       state: "Tamil Nadu",
-      "ISO3166-2-lvl4": "IN-TN"
+      country: "India"
     }
   });
-  assert.equal(key, "IN:TN");
+  assert.match(text, /Temple Street/);
+  assert.match(text, /Chennai/);
 });

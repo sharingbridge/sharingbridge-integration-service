@@ -252,6 +252,55 @@ export function createIntegrationServer({
 
     if (
       req.method === "GET" &&
+      (req.url === "/v1/geocode/reverse" ||
+        req.url.startsWith("/v1/geocode/reverse?"))
+    ) {
+      const auth = extractAuthFromHeaders(req.headers);
+      if (!auth) {
+        return sendJson(res, 401, {
+          code: "missing_auth_context",
+          message: "A valid Bearer token is required."
+        });
+      }
+      try {
+        const requestUrl = new URL(req.url, "http://localhost");
+        const lat = Number(requestUrl.searchParams.get("location_lat"));
+        const lng = Number(requestUrl.searchParams.get("location_lng"));
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return sendJson(res, 400, {
+            code: "invalid_coordinates",
+            message: "location_lat and location_lng must be valid numbers."
+          });
+        }
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          return sendJson(res, 400, {
+            code: "invalid_coordinates",
+            message: "location_lat must be -90..90 and location_lng must be -180..180."
+          });
+        }
+        const { reverseGeocodeLocation } = await import("./postalGeocode.js");
+        const { formatReverseGeocodeForApi } = await import("./geocodeApi.js");
+        const result = await reverseGeocodeLocation(lat, lng);
+        if (!result) {
+          return sendJson(res, 502, {
+            code: "reverse_geocode_unavailable",
+            message: "Could not resolve an address for these coordinates right now."
+          });
+        }
+        return sendJson(res, 200, {
+          user_id: auth.userId,
+          ...formatReverseGeocodeForApi(result)
+        });
+      } catch (error) {
+        return sendJson(res, error?.status || 500, {
+          code: error?.code || "reverse_geocode_error",
+          message: error?.message || "Could not reverse geocode location."
+        });
+      }
+    }
+
+    if (
+      req.method === "GET" &&
       (req.url === "/v1/standard-offers" ||
         req.url.startsWith("/v1/standard-offers?"))
     ) {
