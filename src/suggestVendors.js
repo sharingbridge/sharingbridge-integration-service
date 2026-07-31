@@ -102,6 +102,7 @@ export async function resolveSuggestVendorsResponse(
     "./aiBridgeStatus.js"
   );
   const { isLiveAiSource, logWarn } = await import("./serviceLog.js");
+  const { AiServiceUnavailableError } = await import("./aiServiceUnavailable.js");
 
   if (isSuggestVendorsAiEnabled() && aiClient?.isConfigured()) {
     try {
@@ -127,34 +128,18 @@ export async function resolveSuggestVendorsResponse(
           path: "/internal/v1/llm/suggest-vendors"
         }) || error?.message || String(error);
       const hint = orchestrationFailureHints(error);
-      const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
-        await import("./aiMockFallback.js");
-      if (!isAiMockFallbackEnabled()) {
-        logWarn(log, `${detail}${hint}`);
-        throw new AiServiceUnavailableError(
-          `Suggest vendors ${detail}${hint}`,
-          { code: "orchestration_unavailable" }
-        );
-      }
-      logWarn(log, `${detail}${hint}; using passthrough of query_text`);
-      return buildPassthroughSuggestVendorsResponse(payload);
+      logWarn(log, `${detail}${hint}`);
+      throw new AiServiceUnavailableError(
+        `Suggest vendors ${detail}${hint}`,
+        { code: "orchestration_unavailable" }
+      );
     }
   }
 
-  const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
-    await import("./aiMockFallback.js");
-  if (!isAiMockFallbackEnabled()) {
-    throw new AiServiceUnavailableError(
-      `Suggest vendors unavailable: ${explainMockSuggestVendorsReason()}`,
-      { code: "ai_disabled" }
-    );
-  }
-
-  logWarn(
-    log,
-    `[suggest-vendors] using passthrough of query_text: ${explainMockSuggestVendorsReason()}`
+  throw new AiServiceUnavailableError(
+    `Suggest vendors unavailable: ${explainMockSuggestVendorsReason()}`,
+    { code: "ai_disabled" }
   );
-  return buildPassthroughSuggestVendorsResponse(payload);
 }
 
 function isPresetItem(item) {

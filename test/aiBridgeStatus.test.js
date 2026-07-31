@@ -41,19 +41,29 @@ test("buildAiBridgeStatus reports per-route timeout overrides", () => {
   assert.equal(status.instruction_pack_timeout_ms, 60000);
 });
 
-test("resolveSuggestVendorsResponse uses passthrough when orchestration URL unset", async () => {
+test("resolveSuggestVendorsResponse throws 503 when orchestration URL unset", async () => {
   const original = process.env.AI_ORCHESTRATION_BASE_URL;
-  const originalFallback = process.env.AI_MOCK_FALLBACK_ENABLED;
   delete process.env.AI_ORCHESTRATION_BASE_URL;
   process.env.AI_SUGGEST_VENDORS_ENABLED = "true";
-  process.env.AI_MOCK_FALLBACK_ENABLED = "true";
 
-  const warnings = [];
-  const result = await resolveSuggestVendorsResponse(
-    { query_text: "user typed query", manual_area: "Chennai" },
-    {
-      aiClient: { isConfigured: () => true },
-      log: { warn: (line) => warnings.push(line) }
+  const { AiServiceUnavailableError } = await import(
+    "../src/aiServiceUnavailable.js"
+  );
+
+  await assert.rejects(
+    () =>
+      resolveSuggestVendorsResponse(
+        { query_text: "user typed query", manual_area: "Chennai" },
+        {
+          aiClient: { isConfigured: () => true },
+          log: { warn: () => {} }
+        }
+      ),
+    (error) => {
+      assert.ok(error instanceof AiServiceUnavailableError);
+      assert.equal(error.status, 503);
+      assert.match(error.message, /AI_ORCHESTRATION_BASE_URL is unset/);
+      return true;
     }
   );
 
@@ -62,14 +72,4 @@ test("resolveSuggestVendorsResponse uses passthrough when orchestration URL unse
   } else {
     delete process.env.AI_ORCHESTRATION_BASE_URL;
   }
-  if (originalFallback !== undefined) {
-    process.env.AI_MOCK_FALLBACK_ENABLED = originalFallback;
-  } else {
-    delete process.env.AI_MOCK_FALLBACK_ENABLED;
-  }
-
-  assert.equal(result.source, "passthrough");
-  assert.equal(result.suggestions[0].restaurant_name, "user typed query");
-  assert.equal(warnings.length, 1);
-  assert.match(warnings[0], /AI_ORCHESTRATION_BASE_URL is unset/);
 });

@@ -78,7 +78,7 @@ When `AI_ORCHESTRATION_BASE_URL` is set and feature flags are on, integration-se
 | `AI_ORCHESTRATION_SUGGEST_VENDORS_TIMEOUT_MS` | suggest-vendors HTTP timeout (default `15000`) |
 | `AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS` | instruction-pack HTTP timeout (default `60000`) |
 
-Copy `.env.example` for a local three-service stack. When `AI_MOCK_FALLBACK_ENABLED=false` (production default), orchestration failures return **503** instead of mock/template text.
+Copy `.env.example` for a local three-service stack. If orchestration is down or disabled, suggest-vendors / instruction-pack return **503**. Non-live enrichment is controlled only by `AI_LLM_MODE` on ai-orchestration (`live` vs `passthrough`).
 
 See `sharingbridge/testing/MANUAL_TESTING_GUIDE.md` §1d–§2j and `sharingbridge/development/AI_AS_BUILT.md`.
 

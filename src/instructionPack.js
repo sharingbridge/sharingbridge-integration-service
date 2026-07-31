@@ -120,38 +120,20 @@ export async function resolveInstructionPackResponse(
           ? " (instruction-pack uses Nominatim + Gemini vision + Groq; increase AI_ORCHESTRATION_INSTRUCTION_PACK_TIMEOUT_MS)"
           : "";
       const hint = orchestrationFailureHints(error);
-      const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
-        await import("./aiMockFallback.js");
-      if (!isAiMockFallbackEnabled()) {
-        logWarn(log, `${detail}${timeoutHint}${hint}`);
-        throw new AiServiceUnavailableError(
-          `Instruction pack ${detail}${timeoutHint}${hint}`,
-          { code: "orchestration_unavailable" }
-        );
-      }
-      logWarn(log, `${detail}${timeoutHint}${hint}; using fallback_error`);
-      const { buildInstructionPackFallback } = await import(
-        "./instructionPackFallback.js"
+      const { AiServiceUnavailableError } = await import(
+        "./aiServiceUnavailable.js"
       );
-      return { ...buildInstructionPackFallback(payload), source: "fallback_error" };
+      logWarn(log, `${detail}${timeoutHint}${hint}`);
+      throw new AiServiceUnavailableError(
+        `Instruction pack ${detail}${timeoutHint}${hint}`,
+        { code: "orchestration_unavailable" }
+      );
     }
   }
 
-  const { isAiMockFallbackEnabled, AiServiceUnavailableError } =
-    await import("./aiMockFallback.js");
-  if (!isAiMockFallbackEnabled()) {
-    throw new AiServiceUnavailableError(
-      `Instruction pack unavailable: ${explainInstructionPackMockReason()}`,
-      { code: "ai_disabled" }
-    );
-  }
-
-  logWarn(
-    log,
-    `[instruction-pack] using server template: ${explainInstructionPackMockReason()}`
+  const { AiServiceUnavailableError } = await import("./aiServiceUnavailable.js");
+  throw new AiServiceUnavailableError(
+    `Instruction pack unavailable: ${explainInstructionPackMockReason()}`,
+    { code: "ai_disabled" }
   );
-  const { buildInstructionPackFallback } = await import(
-    "./instructionPackFallback.js"
-  );
-  return buildInstructionPackFallback(payload);
 }

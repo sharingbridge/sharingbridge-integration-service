@@ -1,23 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  AiServiceUnavailableError,
-  isAiMockFallbackEnabled
-} from "../src/aiMockFallback.js";
+import { AiServiceUnavailableError } from "../src/aiServiceUnavailable.js";
 import { resolveSuggestVendorsResponse } from "../src/suggestVendors.js";
 
-test("isAiMockFallbackEnabled defaults to false", () => {
-  assert.equal(isAiMockFallbackEnabled({}), false);
-  assert.equal(isAiMockFallbackEnabled({ AI_MOCK_FALLBACK_ENABLED: "" }), false);
-  assert.equal(isAiMockFallbackEnabled({ AI_MOCK_FALLBACK_ENABLED: "true" }), true);
-});
-
-test("resolveSuggestVendorsResponse throws when mock fallback disabled", async () => {
+test("resolveSuggestVendorsResponse throws 503 when orchestration is not configured", async () => {
   const originalUrl = process.env.AI_ORCHESTRATION_BASE_URL;
-  const originalFallback = process.env.AI_MOCK_FALLBACK_ENABLED;
   delete process.env.AI_ORCHESTRATION_BASE_URL;
   process.env.AI_SUGGEST_VENDORS_ENABLED = "true";
-  delete process.env.AI_MOCK_FALLBACK_ENABLED;
 
   await assert.rejects(
     () =>
@@ -34,10 +23,5 @@ test("resolveSuggestVendorsResponse throws when mock fallback disabled", async (
 
   if (originalUrl !== undefined) {
     process.env.AI_ORCHESTRATION_BASE_URL = originalUrl;
-  }
-  if (originalFallback !== undefined) {
-    process.env.AI_MOCK_FALLBACK_ENABLED = originalFallback;
-  } else {
-    delete process.env.AI_MOCK_FALLBACK_ENABLED;
   }
 });
