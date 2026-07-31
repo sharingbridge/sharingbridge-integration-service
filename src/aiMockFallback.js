@@ -1,6 +1,7 @@
 /**
- * When false (production default), AI routes do not return mock/stub templates
- * on orchestration failure — callers receive HTTP 503 instead.
+ * When false (production default), AI routes fail with HTTP 503 if orchestration
+ * is unavailable — no invented vendor catalogs.
+ * When true (local only), suggest-vendors may echo query_text (passthrough).
  */
 export function isAiMockFallbackEnabled(env = process.env) {
   const raw = env.AI_MOCK_FALLBACK_ENABLED;

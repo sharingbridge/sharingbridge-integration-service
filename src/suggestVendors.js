@@ -1,28 +1,3 @@
-// MVP catalog — order_url filled at response time via vendor search deep links.
-const MOCK_SUGGESTIONS = [
-  {
-    restaurant_name: "A2B",
-    menu_items: ["Mini Meals", "Curd Rice"],
-    app_name: "Zomato",
-    confidence: 0.92,
-    notes: "Opens vendor search — pick the correct outlet in the app"
-  },
-  {
-    restaurant_name: "Saravana Bhavan",
-    menu_items: ["Idli Sambar", "Pongal"],
-    app_name: "Swiggy",
-    confidence: 0.88,
-    notes: "Opens vendor search — pick the correct outlet in the app"
-  },
-  {
-    restaurant_name: "Sangeetha Veg",
-    menu_items: ["Lemon Rice Combo", "Bisibele Bath"],
-    app_name: "Zomato",
-    confidence: 0.84,
-    notes: "Opens vendor search — pick the correct outlet in the app"
-  }
-];
-
 function normalizeCity(manualArea) {
   if (!isNonEmptyString(manualArea)) {
     return "chennai";
@@ -56,8 +31,50 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isNumber(value) {
-  return typeof value === "number" && Number.isFinite(value);
+function inferAppName(queryText) {
+  const q = queryText.toLowerCase();
+  if (q.includes("swiggy")) {
+    return "Swiggy";
+  }
+  return "Zomato";
+}
+
+/**
+ * Echo the user's query as one search row — no invented restaurants.
+ * Hardcoded mock catalogs belong in unit-test fixtures only.
+ */
+export function buildPassthroughSuggestVendorsResponse(payload = {}) {
+  const query =
+    typeof payload.query_text === "string" ? payload.query_text.trim() : "";
+  if (!query) {
+    return {
+      suggestions: [],
+      generated_at: new Date().toISOString(),
+      source: "passthrough"
+    };
+  }
+  const appName = inferAppName(query);
+  return {
+    suggestions: enrichSuggestionUrls(
+      [
+        {
+          restaurant_name: query,
+          menu_items: [query],
+          app_name: appName,
+          confidence: 1,
+          notes: "Your search text — no AI enrichment"
+        }
+      ],
+      payload
+    ),
+    generated_at: new Date().toISOString(),
+    source: "passthrough"
+  };
+}
+
+/** @deprecated Use buildPassthroughSuggestVendorsResponse — name kept for older tests. */
+export function buildSuggestVendorsResponse(payload = {}) {
+  return buildPassthroughSuggestVendorsResponse(payload);
 }
 
 export function validateSuggestVendorsRequest(payload) {
@@ -74,14 +91,6 @@ export function validateSuggestVendorsRequest(payload) {
   }
 
   return null;
-}
-
-export function buildSuggestVendorsResponse(payload = {}) {
-  return {
-    suggestions: enrichSuggestionUrls(MOCK_SUGGESTIONS.slice(0, 5), payload),
-    generated_at: new Date().toISOString(),
-    source: "mock"
-  };
 }
 
 export async function resolveSuggestVendorsResponse(
@@ -101,7 +110,7 @@ export async function resolveSuggestVendorsResponse(
       if (!isLiveAiSource(source)) {
         logWarn(
           log,
-          `[suggest-vendors] orchestration returned non-live source=${source} (check AI_LLM_MODE=live and API keys on ai-orchestration)`
+          `[suggest-vendors] orchestration returned non-live source=${source} (expected live AI or passthrough of user query)`
         );
       }
       return {
@@ -127,9 +136,8 @@ export async function resolveSuggestVendorsResponse(
           { code: "orchestration_unavailable" }
         );
       }
-      logWarn(log, `${detail}${hint}; using mock_fallback`);
-      const fallback = buildSuggestVendorsResponse(payload);
-      return { ...fallback, source: "mock_fallback" };
+      logWarn(log, `${detail}${hint}; using passthrough of query_text`);
+      return buildPassthroughSuggestVendorsResponse(payload);
     }
   }
 
@@ -144,9 +152,9 @@ export async function resolveSuggestVendorsResponse(
 
   logWarn(
     log,
-    `[suggest-vendors] using mock catalog: ${explainMockSuggestVendorsReason()}`
+    `[suggest-vendors] using passthrough of query_text: ${explainMockSuggestVendorsReason()}`
   );
-  return buildSuggestVendorsResponse(payload);
+  return buildPassthroughSuggestVendorsResponse(payload);
 }
 
 function isPresetItem(item) {

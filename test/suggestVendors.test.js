@@ -28,15 +28,27 @@ test("accepts request without GPS or manual_area", () => {
   assert.equal(error, null);
 });
 
-test("response includes max five suggestions with vendor search urls", () => {
+test("passthrough response echoes query_text with a vendor search url", () => {
   const response = buildSuggestVendorsResponse({
+    query_text: "my tiffin stall",
     manual_area: "Chennai"
   });
-  assert.ok(Array.isArray(response.suggestions));
-  assert.ok(response.suggestions.length <= 5);
+  assert.equal(response.source, "passthrough");
+  assert.equal(response.suggestions.length, 1);
+  assert.equal(response.suggestions[0].restaurant_name, "my tiffin stall");
   assert.ok(typeof response.generated_at === "string");
-  const first = response.suggestions[0];
-  assert.match(first.order_url, /zomato\.com|swiggy\.com/);
+  assert.match(response.suggestions[0].order_url, /zomato\.com|swiggy\.com|google\.com/);
+});
+
+test("unit-test fixture catalog is not used by passthrough", async () => {
+  const { MOCK_VENDOR_CATALOG } = await import("./fixtures/mockVendorCatalog.js");
+  const response = buildSuggestVendorsResponse({
+    query_text: "anything user typed"
+  });
+  const fixtureNames = new Set(
+    MOCK_VENDOR_CATALOG.map((row) => row.restaurant_name)
+  );
+  assert.equal(fixtureNames.has(response.suggestions[0].restaurant_name), false);
 });
 
 test("accepts valid save presets request", () => {

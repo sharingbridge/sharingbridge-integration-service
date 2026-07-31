@@ -41,7 +41,7 @@ test("buildAiBridgeStatus reports per-route timeout overrides", () => {
   assert.equal(status.instruction_pack_timeout_ms, 60000);
 });
 
-test("resolveSuggestVendorsResponse logs mock reason when orchestration URL unset", async () => {
+test("resolveSuggestVendorsResponse uses passthrough when orchestration URL unset", async () => {
   const original = process.env.AI_ORCHESTRATION_BASE_URL;
   const originalFallback = process.env.AI_MOCK_FALLBACK_ENABLED;
   delete process.env.AI_ORCHESTRATION_BASE_URL;
@@ -50,7 +50,7 @@ test("resolveSuggestVendorsResponse logs mock reason when orchestration URL unse
 
   const warnings = [];
   const result = await resolveSuggestVendorsResponse(
-    { manual_area: "Chennai" },
+    { query_text: "user typed query", manual_area: "Chennai" },
     {
       aiClient: { isConfigured: () => true },
       log: { warn: (line) => warnings.push(line) }
@@ -68,7 +68,8 @@ test("resolveSuggestVendorsResponse logs mock reason when orchestration URL unse
     delete process.env.AI_MOCK_FALLBACK_ENABLED;
   }
 
-  assert.equal(result.source, "mock");
+  assert.equal(result.source, "passthrough");
+  assert.equal(result.suggestions[0].restaurant_name, "user typed query");
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /AI_ORCHESTRATION_BASE_URL is unset/);
 });
