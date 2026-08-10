@@ -18,13 +18,15 @@ This repository contains the **Integration Service** - handles all third-party v
 - 🏪 Direct vendor program integration (MVP approach)
 - 🔒 Privacy-compliant beneficiary data sharing (time-limited secure links with role-scoped token access, audit logging, and expiry controls)
 
-**Technology Stack:** Node.js 20 HTTP (MVP). NestJS is a scale target only.
+**Technology Stack:** Node.js 20 HTTP (MVP). Planned later: **Spring Boot** (after notification-service beachhead). NestJS is not the current target.
 
 For overall project context, see the [main SharingBridge repository](https://github.com/sharingbridge/sharingbridge).
 
 ## Status
 
 **Shipped:** Donor setup, instruction-pack, order intents, seeker demands, marketplace (Actions board), connections API, device tokens, connection webhook. Requires **`DATABASE_URL`** and **`USER_SERVICE_BASE_URL`** at `npm start`.
+
+**DB access (follow-up):** user-service already exposes env-driven `DB_POOL_*` / `DB_RETRY_*`. Wire the **same names** into this service’s `pg` bootstrap next — [Database client pool & retry (standard)](https://github.com/sharingbridge/sharingbridge/blob/main/configuration/environment-variables.md#database-client-pool--retry-standard). Prefer Supabase **session** pooler (`:5432`) for this long-lived process.
 
 **Doc map:** [STATUS.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/STATUS.md) · [AGENT_SESSION.md](https://github.com/sharingbridge/sharingbridge/blob/main/development/AGENT_SESSION.md)
 
