@@ -64,7 +64,7 @@ public class WebConfig {
         response.setHeader("Access-Control-Allow-Origin", allowOrigin);
         response.setHeader("Vary", "Origin");
         response.setHeader("Access-Control-Allow-Headers", "authorization, content-type");
-        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
         return true;
     }
 }

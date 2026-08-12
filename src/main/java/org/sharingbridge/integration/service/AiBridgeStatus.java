@@ -63,6 +63,46 @@ public final class AiBridgeStatus {
         }
     }
 
+    public static String explainMockSuggestVendorsReason() {
+        return explainMockSuggestVendorsReason(System.getenv());
+    }
+
+    public static String explainMockSuggestVendorsReason(Map<String, String> env) {
+        String baseUrl = trim(env.get("AI_ORCHESTRATION_BASE_URL"));
+        if (baseUrl.isEmpty()) {
+            return "AI_ORCHESTRATION_BASE_URL is unset";
+        }
+        if (!envFlag(env.get("AI_SUGGEST_VENDORS_ENABLED"))) {
+            return "AI_SUGGEST_VENDORS_ENABLED is not true";
+        }
+        return "AI orchestration client not configured";
+    }
+
+    public static String explainInstructionPackMockReason() {
+        return explainInstructionPackMockReason(System.getenv());
+    }
+
+    public static String explainInstructionPackMockReason(Map<String, String> env) {
+        String baseUrl = trim(env.get("AI_ORCHESTRATION_BASE_URL"));
+        if (baseUrl.isEmpty()) {
+            return "AI_ORCHESTRATION_BASE_URL is unset";
+        }
+        if (!envFlag(env.get("AI_INSTRUCTION_PACK_ENABLED"))) {
+            return "AI_INSTRUCTION_PACK_ENABLED is not true";
+        }
+        return "AI orchestration client not configured";
+    }
+
+    public static boolean isLiveAiSource(String source) {
+        if (source == null || source.isBlank()) {
+            return false;
+        }
+        return switch (source.trim().toLowerCase(Locale.ROOT)) {
+            case "groq", "groq+gemini", "gemini", "orchestration" -> true;
+            default -> false;
+        };
+    }
+
     private static boolean envFlag(String raw) {
         if (raw == null || raw.isBlank()) {
             return false;
