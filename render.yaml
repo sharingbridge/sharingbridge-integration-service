@@ -1,6 +1,7 @@
 # Render Blueprint — deploy AFTER user-service and ai-orchestration.
 # Paste AUTH_TOKEN_SECRET, USER_SERVICE_BASE_URL, AI_ORCHESTRATION_BASE_URL manually.
 # Guide: https://github.com/sharingbridge/sharingbridge/blob/main/configuration/backend-render.md
+# Production remains Node under legacy-node/ until Spring cutover.
 services:
   - type: web
     name: sharingbridge-integration-service
@@ -8,8 +9,8 @@ services:
     plan: free
     branch: main
     autoDeploy: true
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm install --prefix legacy-node
+    startCommand: npm start --prefix legacy-node
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION

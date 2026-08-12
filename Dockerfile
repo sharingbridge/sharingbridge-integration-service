@@ -1,15 +1,13 @@
-FROM node:20-slim
-
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
-
+# syntax=docker/dockerfile:1
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /src
+COPY pom.xml .
 COPY src ./src
-COPY scripts ./scripts
-RUN mkdir -p data
+RUN mvn -q -DskipTests package
 
-ENV NODE_ENV=production
-ENV PORT=8080
-EXPOSE 8080
-
-CMD ["npm", "start"]
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+# Render injects PORT at runtime (not wired yet — production still Node via legacy-node)
+EXPOSE 10000
+COPY --from=build /src/target/sharingbridge-integration-service-*.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
