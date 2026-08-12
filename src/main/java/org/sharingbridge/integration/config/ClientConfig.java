@@ -2,6 +2,7 @@ package org.sharingbridge.integration.config;
 
 import org.sharingbridge.integration.client.AiOrchestrationClient;
 import org.sharingbridge.integration.client.AiOrchestrationProperties;
+import org.sharingbridge.integration.client.NominatimClient;
 import org.sharingbridge.integration.client.UserServicePreferencesClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,11 @@ public class ClientConfig {
     @Bean
     public AiOrchestrationClient aiOrchestrationClient(AiOrchestrationProperties properties) {
         return new AiOrchestrationClient(properties);
+    }
+
+    @Bean
+    public NominatimClient nominatimClient() {
+        return new NominatimClient();
     }
 
     @Bean
