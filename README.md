@@ -4,13 +4,13 @@
 
 ## Status
 
-**Production runtime:** Node.js MVP under [`legacy-node/`](./legacy-node/) (Render `runtime: node`).  
-**Beachhead:** Spring Boot 3.3.5 / Java 21 at the repo root (`/health`, auth/CORS/path-alias scaffolding). Business `/v1` routes are not cut over yet.
+**Production runtime:** Node.js MVP under [`legacy-node/`](./legacy-node/) (Render `runtime: node`) until Docker cutover.  
+**Spring Boot 3.3.5 / Java 21** at the repo root now implements the same Experience API (`/health` + `/v1/*`) including order intents, seeker demands, marketplace, and connections.
 
 | Runtime | How to run |
 |---------|------------|
 | Node (production / rollback) | `cd legacy-node && npm install && npm test && npm start` |
-| Spring beachhead | JDK 21 + Maven: `mvn test` then `mvn spring-boot:run` |
+| Spring (parity, not on Render yet) | JDK 21 + Maven: `mvn test` then `mvn spring-boot:run` |
 
 Spring does **not** load `.env` automatically — export vars from `.env.example` into the shell before `spring-boot:run`.
 

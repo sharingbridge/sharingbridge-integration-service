@@ -14,6 +14,10 @@ public final class Roles {
         return ROLE_INITIATOR.equals(role) || ROLE_DONOR.equals(role);
     }
 
+    public static boolean isCoordinatorApiRole(String role) {
+        return ROLE_COORDINATOR.equals(role);
+    }
+
     public static String normalizeRole(String role) {
         if (ROLE_COORDINATOR.equals(role)) {
             return ROLE_COORDINATOR;

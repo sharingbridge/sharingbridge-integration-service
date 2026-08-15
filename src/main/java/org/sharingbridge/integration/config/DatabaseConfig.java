@@ -1,11 +1,22 @@
 package org.sharingbridge.integration.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sharingbridge.integration.geo.GeoSql;
 import org.sharingbridge.integration.repository.DeviceTokenRepository;
+import org.sharingbridge.integration.repository.DonorEmailLookup;
+import org.sharingbridge.integration.repository.MarketplaceRepository;
+import org.sharingbridge.integration.repository.MarketplaceStore;
+import org.sharingbridge.integration.repository.OrderIntentRepository;
+import org.sharingbridge.integration.repository.OrderIntentStore;
+import org.sharingbridge.integration.repository.SeekerDemandRepository;
+import org.sharingbridge.integration.repository.SeekerDemandStore;
+import org.sharingbridge.integration.repository.SqlRecords;
+import org.sharingbridge.integration.service.EcoKitchenPhase3;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataAccessException;
@@ -62,11 +73,7 @@ public class DatabaseConfig {
         try {
             jdbcTemplate.execute("SELECT 1 FROM device_tokens LIMIT 1");
         } catch (DataAccessException ex) {
-            String message = String.valueOf(ex.getMostSpecificCause().getMessage()).toLowerCase();
-            if (message.contains("device_tokens")
-                    && (message.contains("does not exist")
-                            || message.contains("undefined_table")
-                            || message.contains("42p01"))) {
+            if (SqlRecords.isUndefinedTable(ex)) {
                 enabled = false;
                 log.warn(
                         "device_tokens table is not present; PUT /v1/device-tokens will return 503 until migration runs.");
@@ -75,5 +82,57 @@ public class DatabaseConfig {
             }
         }
         return new DeviceTokenRepository(jdbcTemplate, enabled);
+    }
+
+    @Bean
+    public OrderIntentStore orderIntentStore(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+        String gisSchema = GeoSql.resolveGisSchema();
+        EcoKitchenPhase3.Flags phase3 = EcoKitchenPhase3.probe(jdbcTemplate);
+        return new OrderIntentRepository(jdbcTemplate, objectMapper, gisSchema, phase3);
+    }
+
+    @Bean
+    public SeekerDemandStore seekerDemandStore(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+        boolean enabled = true;
+        try {
+            jdbcTemplate.execute("SELECT 1 FROM seeker_demands LIMIT 1");
+        } catch (DataAccessException ex) {
+            if (SqlRecords.isUndefinedTable(ex)) {
+                enabled = false;
+                log.warn("seeker_demands table is not present; seeker-demand APIs stay disabled until migration runs.");
+            } else {
+                throw ex;
+            }
+        }
+        EcoKitchenPhase3.Flags phase3 = enabled ? EcoKitchenPhase3.probe(jdbcTemplate) : EcoKitchenPhase3.Flags.none();
+        String gisSchema = GeoSql.resolveGisSchema();
+        return new SeekerDemandRepository(jdbcTemplate, objectMapper, gisSchema, enabled, phase3);
+    }
+
+    @Bean
+    public MarketplaceStore marketplaceStore(JdbcTemplate jdbcTemplate) {
+        boolean enabled = true;
+        try {
+            jdbcTemplate.execute("SELECT 1 FROM meal_pledges LIMIT 1");
+            jdbcTemplate.execute("SELECT 1 FROM vendor_bids LIMIT 1");
+            jdbcTemplate.execute("SELECT standard_offer_id FROM meal_pledges LIMIT 0");
+            jdbcTemplate.execute("SELECT standard_offer_id FROM vendor_bids LIMIT 0");
+            jdbcTemplate.execute("SELECT 1 FROM standard_offers LIMIT 1");
+        } catch (DataAccessException ex) {
+            if (SqlRecords.isUndefinedTable(ex)) {
+                enabled = false;
+                log.warn(
+                        "Marketplace tables are not present; marketplace APIs stay disabled until migration runs.");
+            } else {
+                throw ex;
+            }
+        }
+        EcoKitchenPhase3.Flags phase3 = enabled ? EcoKitchenPhase3.probe(jdbcTemplate) : EcoKitchenPhase3.Flags.none();
+        return new MarketplaceRepository(jdbcTemplate, enabled, phase3);
+    }
+
+    @Bean
+    public DonorEmailLookup donorEmailLookup(JdbcTemplate jdbcTemplate) {
+        return new DonorEmailLookup(jdbcTemplate);
     }
 }
