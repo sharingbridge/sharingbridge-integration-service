@@ -26,7 +26,13 @@ Shared DB knobs (same names as user-service): `DB_POOL_*`, `DB_RETRY_*`, `DB_SUP
 
 ## Deploy (Render)
 
-Still **Node**. Root `package.json` + `.nvmrc` pin **Node 20** and delegate `npm install` / `npm start` into `legacy-node/` (so existing Render dashboard commands keep working). Blueprint also sets `--prefix legacy-node`. Dockerfile is present for a future Spring cutover — not wired to Render yet.
+Still **Node** via `render.yaml` — set the **dashboard** Build/Start (blueprints do not overwrite existing services):
+
+- Build: `npm install --prefix legacy-node`
+- Start: `npm start --prefix legacy-node`
+- `NODE_VERSION=20` (legacy-node `engines` is pinned to 20)
+
+Dockerfile is present for a future Spring cutover — not wired to Render yet.
 
 ## Contributing
 
