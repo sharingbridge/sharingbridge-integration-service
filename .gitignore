@@ -6,9 +6,8 @@ target/
 .project
 .settings/
 
-# Node legacy / leftover install
+# Leftover Node installs (never commit)
 node_modules/
-legacy-node/node_modules/
 
 # Testing
 coverage/

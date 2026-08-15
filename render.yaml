@@ -1,20 +1,17 @@
-# Render Blueprint — deploy AFTER user-service and ai-orchestration.
-# Paste AUTH_TOKEN_SECRET, USER_SERVICE_BASE_URL, AI_ORCHESTRATION_BASE_URL manually.
+# Render Blueprint — Docker (Spring Boot / Java 21). Deploy AFTER user-service and ai-orchestration.
+# Paste AUTH_TOKEN_SECRET, USER_SERVICE_BASE_URL, AI_ORCHESTRATION_BASE_URL, DATABASE_URL, WEB_CORS_ORIGINS.
 # Guide: https://github.com/sharingbridge/sharingbridge/blob/main/configuration/backend-render.md
-# Production remains Node under legacy-node/ until Spring cutover.
 services:
   - type: web
     name: sharingbridge-integration-service
-    runtime: node
+    runtime: docker
     plan: free
     branch: main
     autoDeploy: true
-    buildCommand: npm install --prefix legacy-node
-    startCommand: npm start --prefix legacy-node
     healthCheckPath: /health
     envVars:
-      - key: NODE_VERSION
-        value: "20"
+      - key: DATABASE_URL
+        sync: false
       - key: AUTH_TOKEN_ISSUER
         value: sharingbridge-user-service
       - key: AUTH_TOKEN_AUDIENCE
@@ -45,5 +42,7 @@ services:
         value: extensions
       - key: NOMINATIM_USER_AGENT
         value: SharingBridge-Integration-Service/1.0
+      - key: DB_SUPABASE_POOL_6543_4TR_5432_4SESN
+        value: "5432"
       - key: WEB_CORS_ORIGINS
         sync: false
