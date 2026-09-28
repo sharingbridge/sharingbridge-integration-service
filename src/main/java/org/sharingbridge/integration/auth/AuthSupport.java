@@ -97,11 +97,13 @@ public final class AuthSupport {
 
     /** Shared 401 JSON body — prefer this over ad-hoc Bearer wording in controllers. */
     public static Map<String, Object> unauthorizedBody() {
-        return Map.of(
-                "code",
-                "missing_auth_context",
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("code", "missing_auth_context");
+        body.put(
                 "message",
                 "Your sign-in has expired or is invalid. Please sign out and sign in again.");
+        body.put("detail", "Missing or invalid Bearer token.");
+        return body;
     }
 
     private static AuthError forbidden(String message) {
