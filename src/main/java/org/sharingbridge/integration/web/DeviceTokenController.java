@@ -29,12 +29,7 @@ public class DeviceTokenController {
         AuthContext auth =
                 AuthSupport.extractAuthFromAuthorizationHeader(authorization, jwtService);
         if (auth == null) {
-            return ResponseEntity.status(401)
-                    .body(Map.of(
-                            "code",
-                            "missing_auth_context",
-                            "message",
-                            "A valid Bearer token is required."));
+            return ResponseEntity.status(401).body(AuthSupport.unauthorizedBody());
         }
         return ResponseEntity.ok(
                 deviceTokenService.upsert(auth.userId(), payload == null ? Map.of() : payload));

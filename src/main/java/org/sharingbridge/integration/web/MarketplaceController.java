@@ -92,11 +92,6 @@ public class MarketplaceController {
     }
 
     private static ResponseEntity<Map<String, Object>> missingAuth() {
-        return ResponseEntity.status(401)
-                .body(Map.of(
-                        "code",
-                        "missing_auth_context",
-                        "message",
-                        "A valid Bearer token is required."));
+        return ResponseEntity.status(401).body(AuthSupport.unauthorizedBody());
     }
 }

@@ -28,12 +28,7 @@ public class ConnectionController {
             @PathVariable("orderCode") String orderCode) {
         AuthContext auth = AuthSupport.extractAuthFromAuthorizationHeader(authorization, jwtService);
         if (auth == null) {
-            return ResponseEntity.status(401)
-                    .body(Map.of(
-                            "code",
-                            "missing_auth_context",
-                            "message",
-                            "A valid Bearer token is required."));
+            return ResponseEntity.status(401).body(AuthSupport.unauthorizedBody());
         }
         return ResponseEntity.ok(connectionService.resolve(orderCode, auth.userId(), auth.role()));
     }

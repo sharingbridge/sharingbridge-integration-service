@@ -92,11 +92,16 @@ public final class AuthSupport {
     }
 
     private static AuthError missingAuth() {
-        return new AuthError(
-                401,
-                Map.of(
-                        "code", "missing_auth_context",
-                        "message", "A valid Bearer token is required."));
+        return new AuthError(401, unauthorizedBody());
+    }
+
+    /** Shared 401 JSON body — prefer this over ad-hoc Bearer wording in controllers. */
+    public static Map<String, Object> unauthorizedBody() {
+        return Map.of(
+                "code",
+                "missing_auth_context",
+                "message",
+                "Your sign-in has expired or is invalid. Please sign out and sign in again.");
     }
 
     private static AuthError forbidden(String message) {
