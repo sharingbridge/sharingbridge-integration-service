@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.sharingbridge.integration.service.Currencies;
 import org.sharingbridge.integration.service.EcoKitchenPhase3;
 import org.sharingbridge.integration.web.ApiException;
 import org.springframework.http.HttpStatus;
@@ -223,6 +224,7 @@ public class MarketplaceRepository implements MarketplaceStore {
             return query(
                     """
                     SELECT standard_offer_id, locality_key, menu_label, price_inr,
+                            NULLIF(TRIM(currency), '') AS currency,
                             created_at, updated_at
                      FROM standard_offers
                      WHERE locality_key = $1
@@ -234,6 +236,7 @@ public class MarketplaceRepository implements MarketplaceStore {
         return query(
                 """
                 SELECT standard_offer_id, locality_key, menu_label, price_inr,
+                        NULLIF(TRIM(currency), '') AS currency,
                         created_at, updated_at
                  FROM standard_offers
                  ORDER BY locality_key ASC, menu_label ASC
@@ -251,6 +254,7 @@ public class MarketplaceRepository implements MarketplaceStore {
                 query(
                         """
                         SELECT standard_offer_id, locality_key, menu_label, price_inr,
+                                NULLIF(TRIM(currency), '') AS currency,
                                 created_at, updated_at
                          FROM standard_offers
                          WHERE standard_offer_id = $1
@@ -311,6 +315,7 @@ public class MarketplaceRepository implements MarketplaceStore {
         record.put("menu_label", String.valueOf(row.getOrDefault("menu_label", "")));
         Object price = row.get("price_inr");
         record.put("price_inr", price == null || "".equals(price) ? null : SqlRecords.asFiniteDouble(price));
+        record.put("currency", Currencies.fromDb(row.get("currency")));
         record.put("created_at", SqlRecords.toIso(row.get("created_at")));
         record.put("updated_at", SqlRecords.toIso(row.get("updated_at")));
         return record;

@@ -2,6 +2,7 @@ package org.sharingbridge.integration.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -31,7 +32,15 @@ class SeekerDemandDomainTest {
     @Test
     void buildSeekerDemandRecordAssignsEcoKitchenSelfPayWhenRequested() {
         Map<String, Object> offer =
-                Map.of("id", "so-lunch-full", "menu_label", "Full course lunch (veg meals)", "price_inr", 120);
+        Map.of(
+                "id",
+                "so-lunch-full",
+                "menu_label",
+                "Full course lunch (veg meals)",
+                "price_inr",
+                120,
+                "currency",
+                "INR");
         Map<String, Object> record =
                 SeekerDemands.buildSeekerDemandRecord(
                         Map.of(
@@ -51,7 +60,15 @@ class SeekerDemandDomainTest {
     @Test
     void buildSeekerDemandRecordAssignsIdAndMenuFromOffer() {
         Map<String, Object> offer =
-                Map.of("id", "so-lunch-full", "menu_label", "Full course lunch (veg meals)", "price_inr", 120);
+        Map.of(
+                "id",
+                "so-lunch-full",
+                "menu_label",
+                "Full course lunch (veg meals)",
+                "price_inr",
+                120,
+                "currency",
+                "INR");
         Map<String, Object> record =
                 SeekerDemands.buildSeekerDemandRecord(
                         Map.of(
@@ -71,7 +88,49 @@ class SeekerDemandDomainTest {
         assertEquals(offer.get("id"), record.get("standard_offer_id"));
         assertEquals(offer.get("menu_label"), record.get("menu_label"));
         assertEquals(offer.get("menu_label"), record.get("need_description"));
+        assertEquals("INR", record.get("currency"));
         assertEquals("u1", record.get("reported_by_user_id"));
+    }
+
+    @Test
+    void buildSeekerDemandRecordCopiesCurrencyFromOfferWithoutInventingDefault() {
+        Map<String, Object> usdOffer =
+                Map.of(
+                        "id",
+                        "so-us-ca-lunch-default",
+                        "menu_label",
+                        "California default lunch",
+                        "price_inr",
+                        12,
+                        "currency",
+                        "USD");
+        Map<String, Object> withUsd =
+                SeekerDemands.buildSeekerDemandRecord(
+                        Map.of(
+                                "standard_offer_id",
+                                usdOffer.get("id"),
+                                "meal_units",
+                                1,
+                                "email_share_consent",
+                                true),
+                        "u1",
+                        usdOffer);
+        assertEquals("USD", withUsd.get("currency"));
+
+        Map<String, Object> bareOffer =
+                Map.of("id", "so-bare", "menu_label", "Item", "price_inr", 10);
+        Map<String, Object> withoutCurrency =
+                SeekerDemands.buildSeekerDemandRecord(
+                        Map.of(
+                                "standard_offer_id",
+                                bareOffer.get("id"),
+                                "meal_units",
+                                1,
+                                "email_share_consent",
+                                true),
+                        "u1",
+                        bareOffer);
+        assertNull(withoutCurrency.get("currency"));
     }
 
     @Test

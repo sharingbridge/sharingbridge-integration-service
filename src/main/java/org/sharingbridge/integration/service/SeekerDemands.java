@@ -37,6 +37,7 @@ public final class SeekerDemands {
         String menuLabel = String.valueOf(standardOffer == null ? "" : standardOffer.getOrDefault("menu_label", "")).trim();
         Object offerId = standardOffer == null ? null : standardOffer.get("id");
         Object price = standardOffer == null ? null : standardOffer.get("price_inr");
+        String currency = Currencies.fromDb(standardOffer == null ? null : standardOffer.get("currency"));
 
         Map<String, Object> record = new LinkedHashMap<>();
         record.put("id", JsValues.randomPrefixedId("sd-"));
@@ -49,6 +50,7 @@ public final class SeekerDemands {
         record.put("standard_offer_id", offerId);
         record.put("menu_label", menuLabel);
         record.put("price_inr", price == null ? null : JsValues.jsNumber(price));
+        record.put("currency", currency);
         record.put("need_description", menuLabel);
         record.put("verbal_notes", verbalNotes);
         record.put("location_lat", null);
@@ -83,6 +85,7 @@ public final class SeekerDemands {
         out.put(
                 "price_inr",
                 record.get("price_inr") instanceof Number n ? n.doubleValue() : null);
+        out.put("currency", Currencies.fromDb(record.get("currency")));
         out.put("need_description", record.get("need_description"));
         out.put("verbal_notes", record.get("verbal_notes") != null ? record.get("verbal_notes") : "");
         out.put(
@@ -168,6 +171,7 @@ public final class SeekerDemands {
                 entry.put(
                         "price_inr",
                         row.get("price_inr") instanceof Number n ? n.doubleValue() : null);
+                entry.put("currency", Currencies.fromDb(row.get("currency")));
                 entry.put("demand_count", 0);
                 entry.put("meal_units_total", 0);
                 entry.put("latest_at", row.get("updated_at"));

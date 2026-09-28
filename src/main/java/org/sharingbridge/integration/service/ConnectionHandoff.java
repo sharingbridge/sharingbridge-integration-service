@@ -161,6 +161,7 @@ public final class ConnectionHandoff {
         base.put("menu_label", menuLabel);
         base.put("meal_units", demandApi == null ? null : demandApi.get("meal_units"));
         base.put("price_inr", demandApi == null ? null : demandApi.get("price_inr"));
+        base.put("currency", demandApi == null ? null : Currencies.fromDb(demandApi.get("currency")));
         base.put("locality_key", localityKey);
         base.put("seeker_demand_id", demandApi == null ? null : demandApi.get("seeker_demand_id"));
         base.put("demand", demand);

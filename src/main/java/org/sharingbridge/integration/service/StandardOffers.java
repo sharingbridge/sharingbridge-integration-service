@@ -18,6 +18,8 @@ public final class StandardOffers {
         } else {
             out.put("price_inr", JsValues.jsNumber(price));
         }
+        String currency = Currencies.fromDb(record.get("currency"));
+        out.put("currency", currency);
         out.put("created_at", record.get("created_at"));
         out.put("updated_at", record.get("updated_at"));
         return out;

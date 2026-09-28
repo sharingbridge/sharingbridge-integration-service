@@ -25,6 +25,7 @@ class ConnectionHandoffTest {
         demand.put("standard_offer_id", "so-lunch");
         demand.put("menu_label", "Lunch");
         demand.put("price_inr", 120);
+        demand.put("currency", "INR");
         demand.put("need_description", "Lunch");
         demand.put("locality_key", "IN:TN:600115");
         demand.put("created_at", "2026-06-01T10:00:00Z");
@@ -85,6 +86,8 @@ class ConnectionHandoffTest {
                         Map.of("kitchen-1", "kitchen@example.com", "initiator-1", "initiator@example.com"),
                         "initiator");
         assertEquals("ready", handoff.get("status"));
+        assertEquals(120, ((Number) handoff.get("price_inr")).intValue());
+        assertEquals("INR", handoff.get("currency"));
         assertEquals(ConnectionHandoff.CONNECTION_SAFETY_COPY, handoff.get("safety_copy"));
         @SuppressWarnings("unchecked")
         Map<String, Object> kitchen = (Map<String, Object>) handoff.get("kitchen");

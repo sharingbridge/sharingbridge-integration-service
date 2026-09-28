@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.sharingbridge.integration.geo.GeoSql;
+import org.sharingbridge.integration.service.Currencies;
 import org.sharingbridge.integration.service.EcoKitchenPhase3;
 import org.sharingbridge.integration.service.OrderCode;
 import org.sharingbridge.integration.service.OrderIntentGeoSql;
@@ -265,6 +266,7 @@ public class SeekerDemandRepository implements SeekerDemandStore {
         payload.put(
                 "price_inr",
                 record.get("price_inr") instanceof Number n ? n.doubleValue() : null);
+        payload.put("currency", Currencies.fromDb(record.get("currency")));
         payload.put("verbal_notes", record.get("verbal_notes") != null ? record.get("verbal_notes") : "");
         payload.put(
                 "location_lat",
@@ -308,6 +310,7 @@ public class SeekerDemandRepository implements SeekerDemandStore {
         record.put(
                 "price_inr",
                 payload.get("price_inr") instanceof Number n ? n.doubleValue() : null);
+        record.put("currency", Currencies.fromDb(payload.get("currency")));
         record.put("verbal_notes", String.valueOf(payload.getOrDefault("verbal_notes", "")));
         record.put("location_lat", payloadLat != null ? payloadLat : geoLat);
         record.put("location_lng", payloadLng != null ? payloadLng : geoLng);

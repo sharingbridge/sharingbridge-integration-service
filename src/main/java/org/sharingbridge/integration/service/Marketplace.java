@@ -174,6 +174,7 @@ public final class Marketplace {
             bucket.put("standard_offer_id", window.get("standard_offer_id"));
             bucket.put("menu_label", window.get("menu_label"));
             bucket.put("price_inr", window.get("price_inr"));
+            bucket.put("currency", Currencies.fromDb(window.get("currency")));
             buckets.add(bucket);
         }
         return buckets;
