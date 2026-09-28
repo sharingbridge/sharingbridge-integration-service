@@ -66,7 +66,7 @@ public class MarketplaceRepository implements MarketplaceStore {
                     INSERT INTO meal_pledges (
                        pledge_id, pledged_by_user_id, demand_window_id, locality_key,
                        standard_offer_id, meal_units, status, created_at, updated_at
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz)
                     """,
                     List.of(
                             record.get("id"),
@@ -96,7 +96,7 @@ public class MarketplaceRepository implements MarketplaceStore {
                        standard_offer_id, vendor_name, portions, notes, status,
                        email_share_consent_at, seeker_demand_id, order_code, commitment_status,
                        created_at, updated_at
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $11, $12, $13, $14, $15)
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $11, $12, $13, $14::timestamptz, $15::timestamptz)
                     """,
                     List.of(
                             record.get("id"),
@@ -122,7 +122,7 @@ public class MarketplaceRepository implements MarketplaceStore {
                     INSERT INTO vendor_bids (
                        vendor_bid_id, submitted_by_user_id, demand_window_id, locality_key,
                        standard_offer_id, vendor_name, portions, notes, status, created_at, updated_at
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $11::timestamptz)
                     """,
                     List.of(
                             record.get("id"),
