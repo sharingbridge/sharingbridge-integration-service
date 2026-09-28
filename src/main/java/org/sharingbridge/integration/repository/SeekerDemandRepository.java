@@ -68,7 +68,7 @@ public class SeekerDemandRepository implements SeekerDemandStore {
                             + "         ) VALUES (\n"
                             + "           $1, $2, $3, $4, $5::jsonb, $6, "
                             + loc
-                            + ", $7, $8,\n"
+                            + ", $7::timestamptz, $8::timestamptz,\n"
                             + "           $9, $10, $11::timestamptz\n"
                             + "         )",
                     List.of(
@@ -95,7 +95,7 @@ public class SeekerDemandRepository implements SeekerDemandStore {
                             + "         ) VALUES (\n"
                             + "           $1, $2, $3, $4, $5::jsonb, $6, "
                             + loc
-                            + ", $7, $8\n"
+                            + ", $7::timestamptz, $8::timestamptz\n"
                             + "         )",
                     List.of(
                             withLocation.get("id"),

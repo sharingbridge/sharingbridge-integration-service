@@ -47,7 +47,7 @@ public class MarketplaceRepository implements MarketplaceStore {
                     INSERT INTO meal_pledges (
                        pledge_id, pledged_by_user_id, demand_window_id, locality_key,
                        standard_offer_id, meal_units, status, email_share_consent_at, created_at, updated_at
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, $10)
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz, $10::timestamptz)
                     """,
                     List.of(
                             record.get("id"),
